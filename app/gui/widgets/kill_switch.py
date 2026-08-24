@@ -8,6 +8,7 @@ from app.gui.theme import COLORS
 
 class KillSwitchButton(QWidget):
     kill_switch_activated = Signal()
+    clicked = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -36,6 +37,7 @@ class KillSwitchButton(QWidget):
 
     def _on_click(self) -> None:
         self.kill_switch_activated.emit()
+        self.clicked.emit()
 
     def set_engaged(self, engaged: bool) -> None:
         self._is_engaged = engaged

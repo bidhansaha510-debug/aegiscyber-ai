@@ -53,25 +53,23 @@ class ChatInputWidget(QWidget):
         layout.setSpacing(8)
 
         self._input = QLineEdit()
-        self._input.setPlaceholderText("Ask AegisCyber AI...")
-        self._input.setMinimumHeight(44)
+        self._input.setPlaceholderText("Ask AegisCyber AI or enter a research prompt...")
         self._input.setStyleSheet(
-            f"QLineEdit {{ font-size: 14px; padding: 10px 16px; "
-            f"border-radius: 8px; background-color: {COLORS['bg_input']}; "
-            f"border: 1px solid {COLORS['border']}; }}"
+            f"QLineEdit {{ background-color: {COLORS['bg_input']}; color: {COLORS['text_primary']}; "
+            f"border: 1px solid {COLORS['border']}; border-radius: 8px; padding: 10px 14px; font-size: 13px; }}"
             f"QLineEdit:focus {{ border-color: {COLORS['accent_cyan']}; }}"
         )
-        self._input.returnPressed.connect(self._on_submit)
-        layout.addWidget(self._input)
+        self._input.returnPressed.connect(self._send)
+        layout.addWidget(self._input, 1)
 
         self._send_btn = QPushButton("Send")
         self._send_btn.setObjectName("primaryButton")
-        self._send_btn.setMinimumHeight(44)
-        self._send_btn.setMinimumWidth(100)
-        self._send_btn.clicked.connect(self._on_submit)
+        self._send_btn.setMinimumHeight(38)
+        self._send_btn.setMinimumWidth(80)
+        self._send_btn.clicked.connect(self._send)
         layout.addWidget(self._send_btn)
 
-    def _on_submit(self) -> None:
+    def _send(self) -> None:
         text = self._input.text().strip()
         if text:
             self.message_submitted.emit(text)
@@ -80,17 +78,11 @@ class ChatInputWidget(QWidget):
     def set_enabled(self, enabled: bool) -> None:
         self._input.setEnabled(enabled)
         self._send_btn.setEnabled(enabled)
-        if not enabled:
-            self._send_btn.setText("Processing...")
-        else:
-            self._send_btn.setText("Send")
-
-    def focus_input(self) -> None:
-        self._input.setFocus()
 
 
 class ChatWidget(QWidget):
     message_submitted = Signal(str)
+    message_sent = Signal(str)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -98,7 +90,7 @@ class ChatWidget(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(8)
 
-        header = QLabel("AI Chat")
+        header = QLabel("AI Investigation Chat")
         header.setStyleSheet(
             f"font-size: 15px; font-weight: 700; color: {COLORS['accent_cyan']}; "
             f"padding: 8px 4px; background: transparent;"
@@ -123,8 +115,13 @@ class ChatWidget(QWidget):
         layout.addWidget(self._scroll_area, 1)
 
         self._input_widget = ChatInputWidget()
-        self._input_widget.message_submitted.connect(self.message_submitted.emit)
+        self._input_widget.message_submitted.connect(self._on_message_submitted)
         layout.addWidget(self._input_widget)
+
+    def _on_message_submitted(self, text: str) -> None:
+        self.add_message("user", text)
+        self.message_submitted.emit(text)
+        self.message_sent.emit(text)
 
     def add_message(self, role: str, content: str) -> None:
         msg = ChatMessage(role, content)
@@ -134,8 +131,14 @@ class ChatWidget(QWidget):
             self._scroll_area.verticalScrollBar().maximum()
         ))
 
+    def append_message(self, role: str, content: str) -> None:
+        self.add_message(role, content)
+
     def set_processing(self, processing: bool) -> None:
         self._input_widget.set_enabled(not processing)
+
+    def set_loading(self, loading: bool) -> None:
+        self.set_processing(loading)
 
     def clear_messages(self) -> None:
         while self._messages_layout.count() > 1:

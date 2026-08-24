@@ -1,16 +1,20 @@
 ﻿from __future__ import annotations
 
+from typing import Any
+
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QTableWidget, QTableWidgetItem, QHeaderView,
     QComboBox, QLineEdit, QPushButton,
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 
 from app.gui.theme import COLORS, RISK_COLORS
 
 
 class ToolsPage(QWidget):
+    scan_requested = Signal()
+
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         layout = QVBoxLayout(self)
@@ -39,6 +43,7 @@ class ToolsPage(QWidget):
 
         scan_btn = QPushButton("Scan Tools")
         scan_btn.setObjectName("primaryButton")
+        scan_btn.clicked.connect(self.scan_requested.emit)
         filter_layout.addWidget(scan_btn)
         self._scan_btn = scan_btn
 
@@ -66,13 +71,31 @@ class ToolsPage(QWidget):
 
         self._all_tools: list[dict] = []
 
+    def populate_tools(self, tools: list[Any]) -> None:
+        dict_tools = []
+        for t in tools:
+            if isinstance(t, dict):
+                dict_tools.append(t)
+            else:
+                dict_tools.append({
+                    "name": getattr(t, "name", ""),
+                    "categories": [getattr(t, "category", "")] if isinstance(getattr(t, "category", ""), str) else getattr(t, "category", []),
+                    "backends": getattr(t, "execution_backend", ["native"]),
+                    "risk_level": getattr(t, "danger_level", "LOW_RISK"),
+                    "installed": getattr(t, "is_available", True),
+                    "success_rate": 0.0,
+                    "capabilities": getattr(t, "capabilities", []),
+                })
+        self.load_tools(dict_tools)
+
     def load_tools(self, tools: list[dict]) -> None:
         self._all_tools = tools
 
         categories = set()
         for tool in tools:
             for cat in tool.get("categories", []):
-                categories.add(cat)
+                if cat:
+                    categories.add(cat)
 
         self._category_filter.clear()
         self._category_filter.addItem("All Categories", "")
