@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from typing import Any
 
@@ -14,69 +14,80 @@ logger = get_logger("osint.connectors.crt")
 class CRTConnector(BaseOSINTConnector):
     CONNECTOR_NAME = "crt"
     SUPPORTED_ENTITIES = [EntityType.DOMAIN]
-    API_URL = "https://crt.sh/?q={domain}&output=json"
 
     async def search(self, entity_type: EntityType, value: str, **kwargs: Any) -> list[OSINTResult]:
         results: list[OSINTResult] = []
+        seen_names: set[str] = set()
+
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
 
         try:
-            async with httpx.AsyncClient(timeout=30.0, verify=True) as client:
-                url = self.API_URL.format(domain=value)
-                response = await client.get(url)
+            async with httpx.AsyncClient(timeout=15.0, headers=headers) as client:
+                try:
+                    response = await client.get(f"https://crt.sh/?q=%.{value}&output=json")
+                    if response.status_code == 200:
+                        data = response.json()
+                        for cert in data:
+                            name_val = cert.get("name_value", "")
+                            for name in name_val.split("\n"):
+                                name = name.strip().lower()
+                                if name.startswith("*."):
+                                    name = name[2:]
+                                if name and name not in seen_names:
+                                    seen_names.add(name)
+                                    results.append(OSINTResult(
+                                        source="crt.sh",
+                                        entity_type="domain",
+                                        value=name,
+                                        confidence=0.9,
+                                        evidence=f"Certificate transparency log for {value}",
+                                        relationships=[{
+                                            "type": "has_certificate" if name == value.lower() else "has_subdomain",
+                                            "from": value,
+                                            "to": name,
+                                        }],
+                                    ))
+                except Exception:
+                    pass
 
-                if response.status_code == 200:
-                    certs = response.json()
-                    seen_names: set[str] = set()
-
-                    for cert in certs:
-                        common_name = cert.get("common_name", "")
-                        name_value = cert.get("name_value", "")
-
-                        names = set()
-                        if common_name:
-                            names.add(common_name.lower())
-                        for name in name_value.split("\n"):
-                            name = name.strip().lower()
-                            if name and name not in seen_names:
-                                names.add(name)
-
-                        for name in names:
-                            if name in seen_names:
-                                continue
-                            seen_names.add(name)
-
-                            results.append(OSINTResult(
-                                source="crt.sh",
-                                entity_type="subdomain" if name != value.lower() else "domain",
-                                value=name,
-                                confidence=0.95,
-                                evidence=f"Certificate transparency log for {value}",
-                                raw_data={
-                                    "issuer": cert.get("issuer_name", ""),
-                                    "not_before": cert.get("not_before", ""),
-                                    "not_after": cert.get("not_after", ""),
-                                    "serial_number": cert.get("serial_number", ""),
-                                },
-                                relationships=[{
-                                    "type": "has_certificate" if name == value.lower() else "has_subdomain",
-                                    "from": value,
-                                    "to": name,
-                                }],
-                            ))
-
-                    logger.info("crt.sh found %d unique names for %s", len(seen_names), value)
-                else:
-                    logger.warning("crt.sh returned status %d for %s", response.status_code, value)
+                if not results:
+                    try:
+                        cs_url = f"https://api.certspotter.com/v1/issuances?domain={value}&include_subdomains=true&expand=dns_names"
+                        cs_resp = await client.get(cs_url)
+                        if cs_resp.status_code == 200:
+                            data = cs_resp.json()
+                            for item in data:
+                                for name in item.get("dns_names", []):
+                                    name = name.strip().lower()
+                                    if name.startswith("*."):
+                                        name = name[2:]
+                                    if name and name not in seen_names:
+                                        seen_names.add(name)
+                                        results.append(OSINTResult(
+                                            source="certspotter",
+                                            entity_type="domain",
+                                            value=name,
+                                            confidence=0.9,
+                                            evidence=f"CertSpotter CT log for {value}",
+                                            relationships=[{
+                                                "type": "has_certificate" if name == value.lower() else "has_subdomain",
+                                                "from": value,
+                                                "to": name,
+                                            }],
+                                        ))
+                    except Exception as e:
+                        logger.debug("CertSpotter fallback error: %s", e)
 
         except Exception as e:
-            logger.error("crt.sh lookup failed for %s: %s", value, e)
+            logger.error("Certificate transparency lookup failed for %s: %s", value, e)
 
         return results
 
     async def health_check(self) -> bool:
+        headers = {"User-Agent": "Mozilla/5.0"}
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                response = await client.get("https://crt.sh/?q=example.com&output=json")
-                return response.status_code == 200
+            async with httpx.AsyncClient(timeout=5.0, headers=headers) as client:
+                resp = await client.get("https://api.certspotter.com/v1/issuances?domain=example.com&include_subdomains=false")
+                return resp.status_code in (200, 429)
         except Exception:
             return False
