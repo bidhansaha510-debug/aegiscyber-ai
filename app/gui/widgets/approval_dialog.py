@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel,
@@ -32,7 +32,7 @@ class ApprovalDialog(QDialog):
 
         risk_color = RISK_COLORS.get(risk_level, COLORS["accent_yellow"])
 
-        title = QLabel(f"⚠ Approval Required — {risk_level}")
+        title = QLabel(f"[!] Approval Required - {risk_level}")
         title.setStyleSheet(
             f"font-size: 18px; font-weight: 700; color: {risk_color}; padding: 8px 0;"
         )
@@ -68,7 +68,7 @@ class ApprovalDialog(QDialog):
 
         if warnings:
             for warning in warnings:
-                warn_label = QLabel(f"⚠ {warning}")
+                warn_label = QLabel(f"[!] {warning}")
                 warn_label.setWordWrap(True)
                 warn_label.setStyleSheet(
                     f"color: {COLORS['accent_yellow']}; font-size: 12px; "
@@ -82,12 +82,12 @@ class ApprovalDialog(QDialog):
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
 
-        deny_btn = QPushButton("✗ Deny")
+        deny_btn = QPushButton("Deny")
         deny_btn.setMinimumWidth(120)
         deny_btn.clicked.connect(self._deny)
         btn_layout.addWidget(deny_btn)
 
-        approve_btn = QPushButton("✓ Approve")
+        approve_btn = QPushButton("Approve")
         approve_btn.setObjectName("primaryButton")
         approve_btn.setMinimumWidth(120)
         approve_btn.clicked.connect(self._approve)

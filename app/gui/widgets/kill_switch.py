@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from PySide6.QtWidgets import QPushButton, QWidget, QHBoxLayout
 from PySide6.QtCore import Signal
@@ -14,7 +14,7 @@ class KillSwitchButton(QWidget):
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
 
-        self._button = QPushButton("⚡ EMERGENCY STOP")
+        self._button = QPushButton("EMERGENCY STOP")
         self._button.setObjectName("dangerButton")
         self._button.setMinimumHeight(40)
         self._button.setMinimumWidth(180)
@@ -40,7 +40,7 @@ class KillSwitchButton(QWidget):
     def set_engaged(self, engaged: bool) -> None:
         self._is_engaged = engaged
         if engaged:
-            self._button.setText("🔴 STOP ACTIVE - Click to Disengage")
+            self._button.setText("[!] STOP ACTIVE - Click to Disengage")
             self._button.setStyleSheet(
                 f"QPushButton#dangerButton {{ "
                 f"background-color: {COLORS['accent_red']}; "
@@ -52,7 +52,7 @@ class KillSwitchButton(QWidget):
                 f"color: {COLORS['accent_red']}; }}"
             )
         else:
-            self._button.setText("⚡ EMERGENCY STOP")
+            self._button.setText("EMERGENCY STOP")
             self._button.setStyleSheet(
                 f"QPushButton#dangerButton {{ "
                 f"background-color: {COLORS['kill_switch_bg']}; "

@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTextEdit, QLineEdit,
@@ -64,7 +64,7 @@ class ChatInputWidget(QWidget):
         self._input.returnPressed.connect(self._on_submit)
         layout.addWidget(self._input)
 
-        self._send_btn = QPushButton("⮞ Send")
+        self._send_btn = QPushButton("Send")
         self._send_btn.setObjectName("primaryButton")
         self._send_btn.setMinimumHeight(44)
         self._send_btn.setMinimumWidth(100)
@@ -81,9 +81,9 @@ class ChatInputWidget(QWidget):
         self._input.setEnabled(enabled)
         self._send_btn.setEnabled(enabled)
         if not enabled:
-            self._send_btn.setText("⏳ Processing...")
+            self._send_btn.setText("Processing...")
         else:
-            self._send_btn.setText("⮞ Send")
+            self._send_btn.setText("Send")
 
     def focus_input(self) -> None:
         self._input.setFocus()
@@ -98,7 +98,7 @@ class ChatWidget(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(8)
 
-        header = QLabel("💬 AI Chat")
+        header = QLabel("AI Chat")
         header.setStyleSheet(
             f"font-size: 15px; font-weight: 700; color: {COLORS['accent_cyan']}; "
             f"padding: 8px 4px; background: transparent;"

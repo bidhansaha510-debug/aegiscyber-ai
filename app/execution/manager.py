@@ -41,9 +41,11 @@ class ExecutionManager:
         self._backend_availability: dict[str, bool] = {}
 
     async def initialize(self) -> dict[str, bool]:
+        return await self.refresh_backend_availability()
+
+    async def refresh_backend_availability(self) -> dict[str, bool]:
         config = get_config()
         availability = {}
-
         availability["native"] = True
 
         if config.execution.enable_wsl:
@@ -52,12 +54,11 @@ class ExecutionManager:
             availability["wsl2"] = False
 
         if config.execution.enable_docker:
-            availability["docker"] = await self._docker_backend.check_available()
+            availability["docker"] = await self._docker_backend.check_available(force=True)
         else:
             availability["docker"] = False
 
         self._backend_availability = availability
-        logger.info("Backend availability: %s", availability)
         return availability
 
     def on_update(self, callback: Callable) -> None:

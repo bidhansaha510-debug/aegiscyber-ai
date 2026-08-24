@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QFrame, QScrollArea
 from PySide6.QtCore import Qt
@@ -15,14 +15,14 @@ class ReasoningStepWidget(QFrame):
         layout.setSpacing(2)
 
         status_icons = {
-            "pending": "○",
-            "active": "◉",
-            "running": "⟳",
-            "complete": "✓",
-            "failed": "✗",
-            "blocked": "⊘",
-            "skipped": "→",
-            "awaiting_approval": "⏸",
+            "pending": "[o]",
+            "active": "[*]",
+            "running": "[~]",
+            "complete": "[+]",
+            "failed": "[-]",
+            "blocked": "[x]",
+            "skipped": "[>]",
+            "awaiting_approval": "[!]",
         }
         status_colors = {
             "pending": COLORS["text_muted"],
@@ -35,7 +35,7 @@ class ReasoningStepWidget(QFrame):
             "awaiting_approval": COLORS["accent_yellow"],
         }
 
-        icon = status_icons.get(status, "○")
+        icon = status_icons.get(status, "[o]")
         color = status_colors.get(status, COLORS["text_muted"])
 
         step_label = QLabel(f"{icon} {step}")
@@ -45,7 +45,7 @@ class ReasoningStepWidget(QFrame):
         layout.addWidget(step_label)
 
         if detail:
-            detail_label = QLabel(f"  → {detail}")
+            detail_label = QLabel(f"  -> {detail}")
             detail_label.setWordWrap(True)
             detail_label.setStyleSheet(
                 f"color: {COLORS['text_secondary']}; font-size: 11px; "
@@ -66,7 +66,7 @@ class ReasoningPanel(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(4)
 
-        header = QLabel("🧠 AI Reasoning")
+        header = QLabel("AI Reasoning")
         header.setStyleSheet(
             f"font-size: 15px; font-weight: 700; color: {COLORS['accent_purple']}; "
             f"padding: 8px 4px; background: transparent;"

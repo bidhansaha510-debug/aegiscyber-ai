@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
@@ -17,7 +17,7 @@ class LogsPage(QWidget):
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(12)
 
-        title = QLabel("📋 Audit Logs")
+        title = QLabel("Audit Logs")
         title.setStyleSheet(
             f"font-size: 24px; font-weight: 700; color: {COLORS['text_bright']};"
         )
@@ -39,7 +39,7 @@ class LogsPage(QWidget):
         clear_btn.clicked.connect(self._clear_logs)
         filter_layout.addWidget(clear_btn)
 
-        export_btn = QPushButton("📥 Export")
+        export_btn = QPushButton("Export")
         filter_layout.addWidget(export_btn)
 
         layout.addLayout(filter_layout)

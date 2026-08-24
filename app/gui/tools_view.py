@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
@@ -17,7 +17,7 @@ class ToolsPage(QWidget):
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(12)
 
-        title = QLabel("🔧 Tool Registry")
+        title = QLabel("Tool Registry")
         title.setStyleSheet(
             f"font-size: 24px; font-weight: 700; color: {COLORS['text_bright']};"
         )
@@ -37,7 +37,7 @@ class ToolsPage(QWidget):
         self._category_filter.currentIndexChanged.connect(self._filter_tools)
         filter_layout.addWidget(self._category_filter)
 
-        scan_btn = QPushButton("🔄 Scan Tools")
+        scan_btn = QPushButton("Scan Tools")
         scan_btn.setObjectName("primaryButton")
         filter_layout.addWidget(scan_btn)
         self._scan_btn = scan_btn
@@ -96,12 +96,12 @@ class ToolsPage(QWidget):
             risk_item.setForeground(Qt.GlobalColor.white)
             self._table.setItem(row, 3, risk_item)
 
-            status = "✓ Installed" if tool.get("installed") else "✗ Not Found"
+            status = "[+] Installed" if tool.get("installed") else "[-] Not Found"
             status_item = QTableWidgetItem(status)
             self._table.setItem(row, 4, status_item)
 
             rate = tool.get("success_rate", 0)
-            self._table.setItem(row, 5, QTableWidgetItem(f"{rate:.0%}" if rate else "—"))
+            self._table.setItem(row, 5, QTableWidgetItem(f"{rate:.0%}" if rate else "--"))
 
             caps = ", ".join(tool.get("capabilities", [])[:3])
             self._table.setItem(row, 6, QTableWidgetItem(caps))

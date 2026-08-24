@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import asyncio
 import sys
@@ -6,7 +6,7 @@ from typing import Any
 
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QTabWidget, QSplitter, QLabel, QMessageBox,
+    QTabWidget, QSplitter, QLabel, QMessageBox, QPushButton,
 )
 from PySide6.QtCore import Qt, QTimer, Signal, Slot, QObject
 from PySide6.QtGui import QIcon
@@ -23,6 +23,7 @@ from app.gui.terminal_view import TerminalPage
 from app.gui.tools_view import ToolsPage
 from app.gui.logs_view import LogsPage
 from app.gui.settings_view import SettingsPage
+from app.execution.hardware import get_gpu_info
 from app.logging_config import get_logger
 
 logger = get_logger("gui.main_window")
@@ -106,22 +107,22 @@ class MainWindow(QMainWindow):
         self._tabs.setDocumentMode(True)
 
         self._dashboard = DashboardPage()
-        self._tabs.addTab(self._dashboard, "?? Dashboard")
+        self._tabs.addTab(self._dashboard, "Dashboard")
 
         self._chat_panel = self._build_investigation_panel()
-        self._tabs.addTab(self._chat_panel, "?? Investigation")
+        self._tabs.addTab(self._chat_panel, "Investigation")
 
         self._terminal = TerminalPage()
-        self._tabs.addTab(self._terminal, "?? Terminal")
+        self._tabs.addTab(self._terminal, "Terminal")
 
         self._tools_page = ToolsPage()
-        self._tabs.addTab(self._tools_page, "?? Tools")
+        self._tabs.addTab(self._tools_page, "Tools")
 
         self._logs_page = LogsPage()
-        self._tabs.addTab(self._logs_page, "?? Logs")
+        self._tabs.addTab(self._logs_page, "Logs")
 
         self._settings_page = SettingsPage()
-        self._tabs.addTab(self._settings_page, "? Settings")
+        self._tabs.addTab(self._settings_page, "Settings")
 
         left_layout.addWidget(self._tabs)
         content_splitter.addWidget(left_panel)
@@ -163,7 +164,7 @@ class MainWindow(QMainWindow):
         layout = QHBoxLayout(header)
         layout.setContentsMargins(20, 0, 20, 0)
 
-        logo_label = QLabel("? AegisCyber AI")
+        logo_label = QLabel("AegisCyber AI")
         logo_label.setStyleSheet(
             f"font-size: 20px; font-weight: 800; "
             f"color: {COLORS['accent_cyan']}; background: transparent;"
@@ -179,14 +180,13 @@ class MainWindow(QMainWindow):
 
         layout.addStretch()
 
-        scope_btn = self._create_header_button("?? Scope", "scopeButton")
+        scope_btn = self._create_header_button("Scope", "scopeButton")
         scope_btn.clicked.connect(self._open_scope_dialog)
         layout.addWidget(scope_btn)
 
         return header
 
     def _create_header_button(self, text: str, name: str) -> QWidget:
-        from PySide6.QtWidgets import QPushButton
         btn = QPushButton(text)
         btn.setObjectName(name)
         btn.setStyleSheet(
@@ -236,8 +236,8 @@ class MainWindow(QMainWindow):
     def _start_status_timer(self) -> None:
         self._status_timer = QTimer(self)
         self._status_timer.timeout.connect(self._update_status)
-        self._status_timer.start(10000)
-        QTimer.singleShot(200, self._initial_status_check)
+        self._status_timer.start(8000)
+        QTimer.singleShot(100, self._initial_status_check)
 
     def _initial_status_check(self) -> None:
         self._update_status()
@@ -251,6 +251,7 @@ class MainWindow(QMainWindow):
             "ollama": False,
             "model": "",
             "backends": {},
+            "gpu": {},
             "installed_tools": 0,
             "total_tools": 0,
         }
@@ -261,8 +262,10 @@ class MainWindow(QMainWindow):
                 from app.config import get_config
                 result["model"] = get_config().ollama.model
 
-            for b in ["native", "wsl2", "docker"]:
-                result["backends"][b] = self._orchestrator._exec_manager.is_backend_available(b)
+            backends = await self._orchestrator._exec_manager.refresh_backend_availability()
+            result["backends"] = backends
+
+            result["gpu"] = get_gpu_info()
 
             registry = self._orchestrator._tool_registry
             result["total_tools"] = registry.get_tool_count()
@@ -297,6 +300,7 @@ class MainWindow(QMainWindow):
             result.get("model", ""),
         )
         self._status_bar.set_backend_status(result.get("backends", {}))
+        self._status_bar.set_gpu_status(result.get("gpu", {}))
         self._status_bar.set_tool_count(
             result.get("installed_tools", 0),
             result.get("total_tools", 0),
@@ -305,7 +309,7 @@ class MainWindow(QMainWindow):
             ollama=result.get("ollama", False),
             wsl=result.get("backends", {}).get("wsl2", False),
             docker=result.get("backends", {}).get("docker", False),
-            gpu=False,
+            gpu=result.get("gpu", {}),
         )
         self._dashboard.update_stats(
             investigations=0,
@@ -475,13 +479,9 @@ class MainWindow(QMainWindow):
                     await self._orchestrator._ollama.close()
                 except Exception:
                     pass
-                try:
-                    await self._orchestrator._exec_manager._db.close()
-                except Exception:
-                    pass
             future = asyncio.run_coroutine_threadsafe(_cleanup(), self._loop)
             try:
                 future.result(timeout=2.0)
             except Exception:
                 pass
-        event.accept()
+        event.accept()

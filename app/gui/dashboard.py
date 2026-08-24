@@ -1,5 +1,6 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
+from typing import Any
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame,
     QGridLayout, QGroupBox, QProgressBar,
@@ -48,7 +49,7 @@ class DashboardPage(QWidget):
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(20)
 
-        title = QLabel("📊 Dashboard")
+        title = QLabel("Dashboard")
         title.setStyleSheet(
             f"font-size: 24px; font-weight: 700; color: {COLORS['text_bright']};"
         )
@@ -57,16 +58,16 @@ class DashboardPage(QWidget):
         cards_layout = QHBoxLayout()
         cards_layout.setSpacing(16)
 
-        self._investigations_card = StatCard("Investigations", "0", "🔍", COLORS["accent_cyan"])
+        self._investigations_card = StatCard("Investigations", "0", "[●]", COLORS["accent_cyan"])
         cards_layout.addWidget(self._investigations_card)
 
-        self._tools_card = StatCard("Tools Available", "0", "🔧", COLORS["accent_green"])
+        self._tools_card = StatCard("Tools Available", "0", "[🔧]", COLORS["accent_green"])
         cards_layout.addWidget(self._tools_card)
 
-        self._executions_card = StatCard("Executions", "0", "⚡", COLORS["accent_blue"])
+        self._executions_card = StatCard("Executions", "0", "[⚡]", COLORS["accent_blue"])
         cards_layout.addWidget(self._executions_card)
 
-        self._entities_card = StatCard("OSINT Entities", "0", "🌐", COLORS["accent_purple"])
+        self._entities_card = StatCard("OSINT Entities", "0", "[🌐]", COLORS["accent_purple"])
         cards_layout.addWidget(self._entities_card)
 
         layout.addLayout(cards_layout)
@@ -76,7 +77,7 @@ class DashboardPage(QWidget):
 
         system_group = QGroupBox("System Status")
         system_layout = QVBoxLayout(system_group)
-        system_layout.setSpacing(8)
+        system_layout.setSpacing(10)
 
         self._ollama_label = QLabel("Ollama: Checking...")
         self._ollama_label.setStyleSheet(f"color: {COLORS['text_secondary']};")
@@ -126,15 +127,30 @@ class DashboardPage(QWidget):
         ollama: bool = False,
         wsl: bool = False,
         docker: bool = False,
-        gpu: bool = False,
+        gpu: dict | bool = False,
     ) -> None:
         self._set_status_label(self._ollama_label, "Ollama", ollama)
         self._set_status_label(self._wsl_label, "WSL2", wsl)
         self._set_status_label(self._docker_label, "Docker", docker)
-        self._set_status_label(self._gpu_label, "GPU", gpu)
+        
+        if isinstance(gpu, dict):
+            if gpu.get("available", False):
+                name = gpu.get("name", "GPU")
+                detail = gpu.get("detail", f"{name} Available")
+                self._gpu_label.setText(f"[+] GPU: {detail}")
+                self._gpu_label.setStyleSheet(f"color: {COLORS['accent_green']}; font-size: 13px;")
+            else:
+                self._gpu_label.setText("[-] GPU: Unavailable")
+                self._gpu_label.setStyleSheet(f"color: {COLORS['text_muted']}; font-size: 13px;")
+        elif gpu:
+            self._gpu_label.setText("[+] GPU: Available")
+            self._gpu_label.setStyleSheet(f"color: {COLORS['accent_green']}; font-size: 13px;")
+        else:
+            self._gpu_label.setText("[-] GPU: Unavailable")
+            self._gpu_label.setStyleSheet(f"color: {COLORS['text_muted']}; font-size: 13px;")
 
     def _set_status_label(self, label: QLabel, name: str, available: bool) -> None:
-        icon = "✓" if available else "✗"
+        icon = "[+]" if available else "[-]"
         color = COLORS["accent_green"] if available else COLORS["accent_red"]
         label.setText(f"{icon} {name}: {'Available' if available else 'Unavailable'}")
         label.setStyleSheet(f"color: {color}; font-size: 13px;")

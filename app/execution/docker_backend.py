@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import asyncio
 import time
@@ -22,8 +22,8 @@ class DockerBackend:
         self._max_output_size = max_output_size
         self._is_available: bool | None = None
 
-    async def check_available(self) -> bool:
-        if self._is_available is not None:
+    async def check_available(self, force: bool = False) -> bool:
+        if self._is_available is not None and not force:
             return self._is_available
 
         try:
@@ -32,10 +32,10 @@ class DockerBackend:
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            _, _ = await asyncio.wait_for(proc.communicate(), timeout=15)
+            _, _ = await asyncio.wait_for(proc.communicate(), timeout=5)
             self._is_available = proc.returncode == 0
         except Exception as e:
-            logger.warning("Docker check failed: %s", e)
+            logger.debug("Docker check: %s", e)
             self._is_available = False
 
         logger.info("Docker backend: %s", "available" if self._is_available else "unavailable")
@@ -80,11 +80,11 @@ class DockerBackend:
         execution_id: str,
         image: str | None = None,
     ) -> AsyncGenerator[ExecutionUpdate, None]:
-        if not await self.check_available():
+        if not await self.check_available(force=True):
             yield ExecutionUpdate(
                 execution_id=execution_id,
                 status=ExecutionStatus.FAILED,
-                stderr_chunk="Docker is not available",
+                stderr_chunk="Docker is not available. Please ensure Docker Desktop is running.",
             )
             return
 

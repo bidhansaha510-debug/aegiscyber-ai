@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
@@ -19,7 +19,7 @@ class SettingsPage(QWidget):
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(16)
 
-        title = QLabel("⚙ Settings")
+        title = QLabel("Settings")
         title.setStyleSheet(
             f"font-size: 24px; font-weight: 700; color: {COLORS['text_bright']};"
         )
@@ -97,7 +97,7 @@ class SettingsPage(QWidget):
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
 
-        save_btn = QPushButton("💾 Save Settings")
+        save_btn = QPushButton("Save Settings")
         save_btn.setObjectName("primaryButton")
         save_btn.setMinimumWidth(160)
         save_btn.clicked.connect(self._save)

@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
@@ -22,7 +22,7 @@ class ScopeDialog(QDialog):
         layout = QVBoxLayout(self)
         layout.setSpacing(12)
 
-        title = QLabel("🎯 Target Scope Configuration")
+        title = QLabel("Target Scope Configuration")
         title.setStyleSheet(
             f"font-size: 18px; font-weight: 700; color: {COLORS['accent_cyan']}; "
             f"padding: 8px 0;"
@@ -68,7 +68,7 @@ class ScopeDialog(QDialog):
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
 
-        confirm_btn = QPushButton("✓ Confirm Scope")
+        confirm_btn = QPushButton("Confirm Scope")
         confirm_btn.setObjectName("primaryButton")
         confirm_btn.setMinimumWidth(150)
         confirm_btn.clicked.connect(self._confirm)

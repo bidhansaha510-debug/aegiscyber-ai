@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPlainTextEdit,
@@ -19,7 +19,7 @@ class TerminalPage(QWidget):
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(12)
 
-        title = QLabel("🖥 Terminal Output")
+        title = QLabel("Terminal Output")
         title.setStyleSheet(
             f"font-size: 24px; font-weight: 700; color: {COLORS['text_bright']};"
         )
@@ -50,7 +50,7 @@ class TerminalPage(QWidget):
         self._cmd_input.returnPressed.connect(self._on_submit)
         input_layout.addWidget(self._cmd_input, 1)
 
-        self._run_btn = QPushButton("▶ Run")
+        self._run_btn = QPushButton("Run")
         self._run_btn.setObjectName("primaryButton")
         self._run_btn.clicked.connect(self._on_submit)
         input_layout.addWidget(self._run_btn)
@@ -80,4 +80,4 @@ class TerminalPage(QWidget):
     def set_running(self, running: bool) -> None:
         self._cmd_input.setEnabled(not running)
         self._run_btn.setEnabled(not running)
-        self._run_btn.setText("⏳ Running..." if running else "▶ Run")
+        self._run_btn.setText("Running..." if running else "Run")
