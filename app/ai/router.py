@@ -138,17 +138,36 @@ class CyberTaskRouter:
                 if "command_plan" in tool_data and tool_data["command_plan"]:
                     cp = tool_data["command_plan"]
                     args = list(cp.get("arguments", []))
-                    calc_timeout = int(cp.get("timeout", tool_def.default_timeout if tool_def else 180))
+                    calc_timeout = int(cp.get("timeout", tool_def.default_timeout if tool_def else 1800))
 
                     if tool_name == "nmap":
                         if any("-p-" in str(a) for a in args):
-                            calc_timeout = max(calc_timeout, 600)
+                            calc_timeout = max(calc_timeout, 1800)
                             if not any(str(a).startswith("-T") for a in args):
                                 args.insert(0, "-T4")
                         else:
                             if not any(str(a).startswith("-T") for a in args):
                                 args.insert(0, "-T4")
-                            calc_timeout = max(calc_timeout, 180)
+                            calc_timeout = max(calc_timeout, 600)
+
+                    elif tool_name == "subfinder":
+                        args = ["-silent" if str(a) in ["-quiet", "--quiet", "-q"] else a for a in args]
+                        if "-d" not in args and target not in args:
+                            args = ["-d", target, "-silent"]
+
+                    elif tool_name == "httpx":
+                        args = ["-silent" if str(a) in ["-quiet", "--quiet", "-q"] else a for a in args]
+
+                    elif tool_name == "dig":
+                        cleaned_args = []
+                        for a in args:
+                            a_str = str(a).strip()
+                            if a_str.startswith("@"):
+                                srv = a_str[1:].lower()
+                                if srv == target.lower() or srv.endswith(target.lower()):
+                                    continue
+                            cleaned_args.append(a)
+                        args = cleaned_args
 
                     installed_info = self._registry.get_installed_info(tool_name)
                     chosen_backend = installed_info.backend if (installed_info and installed_info.is_available) else "wsl2"
