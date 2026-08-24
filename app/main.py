@@ -117,10 +117,7 @@ async def initialize_system() -> dict:
 
 def main() -> None:
     config = get_config()
-    setup_logging(
-        log_level=config.log_level,
-        log_file=config.log_file,
-    )
+    setup_logging(log_dir=config.log_dir, debug=config.debug)
     logger = get_logger("main")
 
     async_thread = AsyncLoopThread()
