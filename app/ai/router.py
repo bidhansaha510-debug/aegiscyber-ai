@@ -137,13 +137,29 @@ class CyberTaskRouter:
                 cmd_plan = None
                 if "command_plan" in tool_data and tool_data["command_plan"]:
                     cp = tool_data["command_plan"]
+                    args = list(cp.get("arguments", []))
+                    calc_timeout = int(cp.get("timeout", tool_def.default_timeout if tool_def else 180))
+
+                    if tool_name == "nmap":
+                        if any("-p-" in str(a) for a in args):
+                            calc_timeout = max(calc_timeout, 600)
+                            if not any(str(a).startswith("-T") for a in args):
+                                args.insert(0, "-T4")
+                        else:
+                            if not any(str(a).startswith("-T") for a in args):
+                                args.insert(0, "-T4")
+                            calc_timeout = max(calc_timeout, 180)
+
+                    installed_info = self._registry.get_installed_info(tool_name)
+                    chosen_backend = installed_info.backend if (installed_info and installed_info.is_available) else "wsl2"
+
                     cmd_plan = CommandPlan(
                         executable=cp.get("executable", tool_name),
-                        arguments=cp.get("arguments", []),
+                        arguments=args,
                         target=cp.get("target", target),
-                        timeout=cp.get("timeout", 120),
+                        timeout=calc_timeout,
                         explanation=cp.get("explanation", ""),
-                        backend="wsl2",
+                        backend=chosen_backend,
                     )
                 elif tool_def:
                     cmd_plan = self._planner.create_command_plan(tool_def, target)

@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 
 ORCHESTRATOR_SYSTEM = """You are AegisCyber AI, an expert cybersecurity research assistant designed for authorized security testing, CTF challenges, cyber ranges, and penetration testing of owned infrastructure.
@@ -63,6 +63,12 @@ You must consider:
 4. The best arguments and flags for the specific task
 5. Expected output format for parsing
 
+When generating Nmap commands:
+- Always include timing template `-T4` for fast execution
+- For initial port scanning, target common service ports (e.g. `["-T4", "-sV", "-p", "80,443,22,21,25,53,3306,8080,8443"]` or `["-T4", "--top-ports", "100", "-sV"]`)
+- Avoid `-p-` unless the user explicitly requested a full 65535 port scan
+- Set timeout to 180s for standard scans, and 600s for full port scans
+
 Produce a JSON tool selection:
 {
     "selected_tools": [
@@ -73,7 +79,7 @@ Produce a JSON tool selection:
                 "executable": "binary_name",
                 "arguments": ["arg1", "arg2"],
                 "target": "target_value",
-                "timeout": 120,
+                "timeout": 180,
                 "explanation": "what this command does"
             },
             "expected_output_type": "xml|json|text|greppable",
