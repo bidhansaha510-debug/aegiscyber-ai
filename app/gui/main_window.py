@@ -33,6 +33,7 @@ class AsyncBridge(QObject):
     coro_completed = Signal(object, object)
     coro_failed = Signal(object, str)
     reasoning_updated = Signal(list)
+    approval_requested = Signal(object, object)
 
     def __init__(self, loop: asyncio.AbstractEventLoop | None, parent=None):
         super().__init__(parent)
@@ -68,6 +69,7 @@ class MainWindow(QMainWindow):
         self._bridge.coro_completed.connect(self._handle_coro_completed)
         self._bridge.coro_failed.connect(self._handle_coro_failed)
         self._bridge.reasoning_updated.connect(self._handle_reasoning_updated)
+        self._bridge.approval_requested.connect(self._handle_approval_request)
 
         self._setup_window()
         self._build_ui()
@@ -75,6 +77,7 @@ class MainWindow(QMainWindow):
 
         if self._orchestrator:
             self._orchestrator.on_reasoning_update(self._on_reasoning_step)
+            self._orchestrator.set_approval_handler(self._on_orchestrator_approval_needed)
             self._load_tools_table()
 
         self._start_status_timer()
@@ -119,7 +122,7 @@ class MainWindow(QMainWindow):
         self._tabs.addTab(self._tools_page, "Tools")
 
         self._logs_page = LogsPage()
-        self._tabs.addTab(self._logs_page, "Logs")
+        self._tabs.addTab(self._logs_page, "Logs & Audit")
 
         self._settings_page = SettingsPage()
         self._tabs.addTab(self._settings_page, "Settings")
@@ -127,284 +130,244 @@ class MainWindow(QMainWindow):
         left_layout.addWidget(self._tabs)
         content_splitter.addWidget(left_panel)
 
-        right_panel = QWidget()
-        right_panel.setMinimumWidth(300)
-        right_panel.setMaximumWidth(450)
-        right_layout = QVBoxLayout(right_panel)
-        right_layout.setContentsMargins(8, 8, 8, 8)
-        right_layout.setSpacing(8)
-
         self._reasoning_panel = ReasoningPanel()
-        right_layout.addWidget(self._reasoning_panel, 1)
+        self._reasoning_panel.setMinimumWidth(320)
+        self._reasoning_panel.setMaximumWidth(450)
+        content_splitter.addWidget(self._reasoning_panel)
 
-        self._kill_switch = KillSwitchButton()
-        right_layout.addWidget(self._kill_switch)
-
-        content_splitter.addWidget(right_panel)
-        content_splitter.setSizes([1200, 350])
+        content_splitter.setStretchFactor(0, 7)
+        content_splitter.setStretchFactor(1, 3)
 
         main_layout.addWidget(content_splitter, 1)
 
         self._status_bar = StatusBarWidget()
-        self._status_bar.setFixedHeight(32)
-        self._status_bar.setStyleSheet(
-            f"background-color: {COLORS['bg_primary']}; "
-            f"border-top: 1px solid {COLORS['border']};"
-        )
         main_layout.addWidget(self._status_bar)
 
     def _build_header(self) -> QWidget:
         header = QWidget()
         header.setFixedHeight(56)
         header.setStyleSheet(
-            f"background: qlineargradient(x1:0, y1:0, x2:1, y2:0, "
-            f"stop:0 {COLORS['bg_primary']}, stop:1 {COLORS['bg_tertiary']}); "
+            f"background-color: {COLORS['bg_secondary']}; "
             f"border-bottom: 1px solid {COLORS['border']};"
         )
         layout = QHBoxLayout(header)
-        layout.setContentsMargins(20, 0, 20, 0)
+        layout.setContentsMargins(16, 0, 16, 0)
+        layout.setSpacing(12)
 
-        logo_label = QLabel("AegisCyber AI")
-        logo_label.setStyleSheet(
-            f"font-size: 20px; font-weight: 800; "
-            f"color: {COLORS['accent_cyan']}; background: transparent;"
+        logo = QLabel("AEGISCYBER AI")
+        logo.setStyleSheet(
+            f"font-size: 16px; font-weight: 800; color: {COLORS['accent_cyan']}; "
+            f"letter-spacing: 2px;"
         )
-        layout.addWidget(logo_label)
+        layout.addWidget(logo)
 
-        version_label = QLabel("v1.0.0")
-        version_label.setStyleSheet(
-            f"color: {COLORS['text_muted']}; font-size: 11px; "
-            f"padding-top: 6px; background: transparent;"
+        tagline = QLabel("LOCAL SECURITY RESEARCH & RECON ASSISTANT")
+        tagline.setStyleSheet(
+            f"font-size: 10px; font-weight: 600; color: {COLORS['text_muted']}; "
+            f"letter-spacing: 1px;"
         )
-        layout.addWidget(version_label)
+        layout.addWidget(tagline)
 
         layout.addStretch()
 
-        scope_btn = self._create_header_button("Scope", "scopeButton")
+        scope_btn = QPushButton("Target Scope")
+        scope_btn.setToolTip("Configure authorized targets")
         scope_btn.clicked.connect(self._open_scope_dialog)
         layout.addWidget(scope_btn)
 
-        return header
+        self._kill_switch = KillSwitchButton()
+        self._kill_switch.clicked.connect(self._on_kill_switch)
+        layout.addWidget(self._kill_switch)
 
-    def _create_header_button(self, text: str, name: str) -> QWidget:
-        btn = QPushButton(text)
-        btn.setObjectName(name)
-        btn.setStyleSheet(
-            f"QPushButton {{ background-color: {COLORS['bg_tertiary']}; "
-            f"border: 1px solid {COLORS['border']}; border-radius: 6px; "
-            f"padding: 6px 14px; color: {COLORS['text_primary']}; font-size: 12px; }}"
-            f"QPushButton:hover {{ background-color: {COLORS['bg_hover']}; "
-            f"border-color: {COLORS['accent_cyan']}; }}"
-        )
-        return btn
+        return header
 
     def _build_investigation_panel(self) -> QWidget:
         panel = QWidget()
-        layout = QHBoxLayout(panel)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(8)
 
-        self._chat_widget = ChatWidget()
-        layout.addWidget(self._chat_widget, 1)
+        self._chat = ChatWidget()
+        layout.addWidget(self._chat)
 
         return panel
 
     def _connect_signals(self) -> None:
-        self._chat_widget.message_submitted.connect(self._on_chat_submit)
+        self._chat.message_sent.connect(self._on_chat_message)
         self._terminal.command_submitted.connect(self._on_terminal_command)
-        self._kill_switch.kill_switch_activated.connect(self._on_kill_switch)
+        self._tools_page.scan_requested.connect(self._on_scan_tools)
         self._settings_page.settings_changed.connect(self._on_settings_changed)
-        self._tools_page._scan_btn.clicked.connect(self._on_scan_tools)
-
-    def _load_tools_table(self) -> None:
-        if not self._orchestrator:
-            return
-        tools_data = []
-        registry = self._orchestrator._tool_registry
-        for tool in registry.get_all_tools():
-            tools_data.append({
-                "name": tool.name,
-                "description": tool.description,
-                "categories": tool.category,
-                "backends": tool.execution_backend,
-                "risk_level": tool.danger_level,
-                "installed": registry.is_installed(tool.name),
-                "capabilities": tool.capabilities,
-            })
-        self._tools_page.load_tools(tools_data)
 
     def _start_status_timer(self) -> None:
         self._status_timer = QTimer(self)
         self._status_timer.timeout.connect(self._update_status)
         self._status_timer.start(8000)
-        QTimer.singleShot(100, self._initial_status_check)
-
-    def _initial_status_check(self) -> None:
         self._update_status()
 
     def _update_status(self) -> None:
-        if self._orchestrator and self._loop:
-            self._bridge.run(self._check_status_async(), on_success=self._on_status_checked)
+        if not self._orchestrator or not self._loop:
+            return
 
-    async def _check_status_async(self) -> dict:
-        result = {
-            "ollama": False,
-            "model": "",
-            "backends": {},
-            "gpu": {},
-            "installed_tools": 0,
-            "total_tools": 0,
-        }
-        if self._orchestrator:
-            client = self._orchestrator._ollama
-            result["ollama"] = await client.health_check()
-            if result["ollama"]:
-                from app.config import get_config
-                result["model"] = get_config().ollama.model
+        async def _check():
+            try:
+                ollama_ok = await self._orchestrator._ollama.health_check()
+            except Exception:
+                ollama_ok = False
 
-            backends = await self._orchestrator._exec_manager.refresh_backend_availability()
-            result["backends"] = backends
+            backends = {}
+            if self._orchestrator._exec_manager:
+                try:
+                    backends = await self._orchestrator._exec_manager.refresh_backend_availability()
+                except Exception:
+                    backends = {
+                        b: self._orchestrator._exec_manager.is_backend_available(b)
+                        for b in ["native", "wsl2", "docker"]
+                    }
 
-            result["gpu"] = get_gpu_info()
+            tools_count = len(self._orchestrator._tool_registry.get_all_tools())
+            installed_count = len(self._orchestrator._tool_registry.get_installed_tools())
 
-            registry = self._orchestrator._tool_registry
-            result["total_tools"] = registry.get_tool_count()
-            result["installed_tools"] = sum(1 for t in registry.get_all_tools() if registry.is_installed(t.name))
-        return result
+            gpu_info = get_gpu_info()
 
-    @Slot(object, object)
-    def _handle_coro_completed(self, callback: Any, result: Any) -> None:
-        if callback:
-            callback(result)
+            return {
+                "ollama": ollama_ok,
+                "model": self._orchestrator._ollama.model,
+                "backends": backends,
+                "tools_count": tools_count,
+                "installed_count": installed_count,
+                "gpu": gpu_info,
+            }
 
-    @Slot(object, str)
-    def _handle_coro_failed(self, callback: Any, error_msg: str) -> None:
-        if callback:
-            callback(error_msg)
+        self._bridge.run(
+            _check(),
+            on_success=self._on_status_result,
+            on_error=lambda err: logger.warning("Status check failed: %s", err),
+        )
 
-    @Slot(list)
-    def _handle_reasoning_updated(self, steps: list) -> None:
-        self._reasoning_panel.update_state(steps)
+    def _on_status_result(self, data: dict[str, Any]) -> None:
+        self._status_bar.set_ollama_status(data["ollama"], data.get("model", "llama3:latest"))
+        self._status_bar.set_backend_status(data["backends"])
+        self._status_bar.set_tool_count(data["installed_count"], data["tools_count"])
+
+        gpu_info = data.get("gpu", {})
+        self._status_bar.set_gpu_status(gpu_info)
+
+        ks = self._orchestrator._kill_switch.is_engaged if self._orchestrator else False
+        self._status_bar.set_kill_switch(ks)
+
+        self._dashboard.update_status(data)
+
+    def _load_tools_table(self) -> None:
+        if not self._orchestrator:
+            return
+        tools = self._orchestrator._tool_registry.get_all_tools()
+        self._tools_page.populate_tools(tools)
+        installed = self._orchestrator._tool_registry.get_installed_tools()
+        self._dashboard.update_tools_count(len(installed), len(tools))
 
     def _on_reasoning_step(self, state: Any) -> None:
-        steps = [
-            {"step": s.step, "status": s.status, "detail": s.detail}
-            for s in state.reasoning_steps
+        steps_data = [
+            {"step": rs.step, "status": rs.status, "detail": rs.detail}
+            for rs in state.reasoning_steps
         ]
-        self._bridge.reasoning_updated.emit(steps)
+        self._bridge.reasoning_updated.emit(steps_data)
 
-    @Slot(object)
-    def _on_status_checked(self, result: dict) -> None:
-        self._status_bar.set_ollama_status(
-            result.get("ollama", False),
-            result.get("model", ""),
+    def _on_orchestrator_approval_needed(self, command_plan: Any, policy: Any) -> bool:
+        self._bridge.approval_requested.emit(command_plan, policy)
+        return True
+
+    @Slot(object, object)
+    def _handle_approval_request(self, command_plan: Any, policy: Any) -> None:
+        dialog = ApprovalDialog(
+            command=command_plan.to_command_string(),
+            tool_name=command_plan.executable,
+            target=command_plan.target,
+            risk_level=policy.risk,
+            explanation=command_plan.explanation or "Security Tool Execution",
+            warnings=policy.warnings,
+            parent=self,
         )
-        self._status_bar.set_backend_status(result.get("backends", {}))
-        self._status_bar.set_gpu_status(result.get("gpu", {}))
-        self._status_bar.set_tool_count(
-            result.get("installed_tools", 0),
-            result.get("total_tools", 0),
-        )
-        self._dashboard.update_system_status(
-            ollama=result.get("ollama", False),
-            wsl=result.get("backends", {}).get("wsl2", False),
-            docker=result.get("backends", {}).get("docker", False),
-            gpu=result.get("gpu", {}),
-        )
-        self._dashboard.update_stats(
-            investigations=0,
-            tools=result.get("total_tools", 0),
-            executions=0,
-            entities=0,
-        )
-
-    @Slot(str)
-    def _on_chat_submit(self, message: str) -> None:
-        self._chat_widget.add_message("user", message)
-        self._chat_widget.set_processing(True)
-
-        if self._orchestrator and self._loop:
-            self._bridge.run(
-                self._orchestrator.process_request(message),
-                on_success=self._on_chat_response,
-                on_error=self._on_chat_error,
-            )
-        else:
-            self._chat_widget.add_message("assistant", "Orchestrator not initialized. Please check Ollama connection.")
-            self._chat_widget.set_processing(False)
-
-    @Slot(object)
-    def _on_chat_response(self, response: Any) -> None:
-        self._chat_widget.add_message("assistant", str(response))
-        self._chat_widget.set_processing(False)
-
+        result = dialog.exec()
+        approved = (result == ApprovalDialog.DialogCode.Accepted)
         if self._orchestrator:
-            steps = [
-                {"step": s.step, "status": s.status, "detail": s.detail}
-                for s in self._orchestrator.state.reasoning_steps
-            ]
-            self._reasoning_panel.update_state(steps)
+            self._orchestrator.submit_approval_decision(approved)
 
-    @Slot(str)
+    @Slot(list)
+    def _handle_reasoning_updated(self, steps_data: list) -> None:
+        self._reasoning_panel.update_steps(steps_data)
+
+    def _on_chat_message(self, message: str) -> None:
+        if not self._orchestrator or not self._loop:
+            self._chat.append_message("system", "Orchestrator not initialized.")
+            return
+
+        self._chat.set_loading(True)
+        self._reasoning_panel.clear_steps()
+        self._reasoning_panel.set_investigation_id("running...")
+
+        self._bridge.run(
+            self._orchestrator.process_request(message),
+            on_success=self._on_chat_response,
+            on_error=self._on_chat_error,
+        )
+
+    def _on_chat_response(self, response: str) -> None:
+        self._chat.append_message("assistant", response)
+        self._chat.set_loading(False)
+        if self._orchestrator:
+            self._reasoning_panel.set_investigation_id(self._orchestrator.state.investigation_id)
+
     def _on_chat_error(self, error: str) -> None:
-        self._chat_widget.add_message("assistant", f"Error: {error}")
-        self._chat_widget.set_processing(False)
+        self._chat.append_message("assistant", f"Error: {error}")
+        self._chat.set_loading(False)
 
-    @Slot(str, str)
-    def _on_terminal_command(self, command: str, backend: str) -> None:
+    @Slot(object, object)
+    def _handle_coro_completed(self, callback, result):
+        if callback:
+            try:
+                callback(result)
+            except Exception as e:
+                logger.error("Callback error: %s", e, exc_info=True)
+
+    @Slot(object, str)
+    def _handle_coro_failed(self, callback, error_str):
+        if callback:
+            try:
+                callback(error_str)
+            except Exception as e:
+                logger.error("Error callback error: %s", e, exc_info=True)
+
+    def _on_terminal_command(self, command: str) -> None:
+        if not self._orchestrator or not self._loop:
+            self._terminal.append_error("Execution manager not available")
+            return
+
         self._terminal.set_running(True)
-        self._terminal.append_output(f"Executing on {backend}...")
 
-        if self._orchestrator and self._loop:
+        async def _exec():
             from app.execution.models import CommandPlan, ExecutionRequest
-            parts = command.split()
-            cmd_plan = CommandPlan(
-                executable=parts[0] if parts else command,
-                arguments=parts[1:] if len(parts) > 1 else [],
-                target="",
-                backend=backend,
+            parts = command.strip().split()
+            if not parts:
+                return None
+            plan = CommandPlan(
+                executable=parts[0],
+                arguments=parts[1:],
+                backend="wsl2",
+                timeout=120,
             )
+            req = ExecutionRequest(command_plan=plan)
+            return await self._orchestrator._exec_manager.execute(req)
 
-            policy = self._orchestrator._policy_engine.evaluate(cmd_plan)
-            if not policy.allowed:
-                self._terminal.append_error(f"BLOCKED: {policy.reason}")
-                self._terminal.set_running(False)
-                return
+        self._bridge.run(
+            _exec(),
+            on_success=self._on_terminal_result,
+            on_error=self._on_terminal_error,
+        )
 
-            if policy.requires_approval:
-                dialog = ApprovalDialog(
-                    command=command,
-                    tool_name=parts[0] if parts else "unknown",
-                    target="",
-                    risk_level=policy.risk,
-                    explanation="Terminal command",
-                    warnings=policy.warnings,
-                    parent=self,
-                )
-                if dialog.exec() != dialog.DialogCode.Accepted:
-                    self._terminal.append_output("Command denied by user.")
-                    self._terminal.set_running(False)
-                    return
-
-            exec_req = ExecutionRequest(task_id="terminal", command_plan=cmd_plan)
-            self._bridge.run(
-                self._orchestrator._exec_manager.execute(exec_req),
-                on_success=self._on_terminal_result,
-                on_error=self._on_terminal_error,
-            )
-        else:
-            self._terminal.append_error("Orchestrator not initialized")
-            self._terminal.set_running(False)
-
-    @Slot(object)
     def _on_terminal_result(self, result: Any) -> None:
-        if hasattr(result, "stdout") and result.stdout:
-            self._terminal.append_output(result.stdout)
-        if hasattr(result, "stderr") and result.stderr:
-            self._terminal.append_error(result.stderr)
-        duration = getattr(result, "duration_seconds", 0.0)
-        exit_code = getattr(result, "exit_code", None)
-        self._terminal.append_output(f"\n[Exit Code: {exit_code}] [{duration:.1f}s]\n")
+        if result:
+            output = result.stdout or result.stderr or f"Process exited with code {result.exit_code}"
+            self._terminal.append_output(output)
         self._terminal.set_running(False)
 
     @Slot(str)
@@ -417,7 +380,7 @@ class MainWindow(QMainWindow):
             return
         self._tools_page._status_label.setText("Scanning backends for installed tools...")
         from app.tools.discovery import ToolDiscovery
-        discovery = ToolDiscovery(self._orchestrator._exec_manager, self._orchestrator._tool_registry)
+        discovery = ToolDiscovery(self._orchestrator._tool_registry, self._orchestrator._exec_manager)
         self._bridge.run(
             discovery.scan_all_tools(),
             on_success=self._on_scan_completed,

@@ -1,6 +1,7 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
+import re
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -52,6 +53,11 @@ class CyberTaskRouter:
         target: str,
         risk_limit: str = "MEDIUM_RISK",
     ) -> RoutingResult:
+        all_installed = [
+            t.name for t in self._registry.get_all_tools()
+            if self._registry.is_installed(t.name)
+        ]
+
         scores = self._planner.score_tools(
             required_capabilities=required_capabilities,
             input_types=[],
@@ -60,32 +66,36 @@ class CyberTaskRouter:
             category=category if category else None,
         )
 
-        installed_tools = [
+        cat_installed = [
             s.tool_name for s in scores
-            if s.installation_status > 0 and s.total_score > 10
+            if s.installation_status > 0 and self._registry.is_installed(s.tool_name)
         ]
 
-        if not installed_tools:
+        available_pool = cat_installed or all_installed
+
+        if available_pool:
+            available_tools_detail = "\n".join(
+                f"- {name}: {self._registry.get_tool(name).description if self._registry.get_tool(name) else ''}"
+                for name in available_pool
+            )
+            installed_str = ", ".join(available_pool)
+        else:
             all_category_tools = self._registry.get_tools_by_category(category) if category else []
             available_tools_detail = "\n".join(
                 f"- {t.name}: {t.description} (capabilities: {', '.join(t.capabilities)})"
                 for t in all_category_tools
             )
-        else:
-            available_tools_detail = "\n".join(
-                f"- {name}: {self._registry.get_tool(name).description if self._registry.get_tool(name) else 'unknown'}"
-                for name in installed_tools[:10]
-            )
+            installed_str = "None"
 
         prompt = TOOL_SELECTION_TEMPLATE.format(
             phase_name=phase_name,
             phase_description=phase_description,
-            category=category,
+            category=category or "GENERAL_RECON",
             required_capabilities=", ".join(required_capabilities),
             target=target,
             risk_limit=risk_limit,
             available_tools_detail=available_tools_detail,
-            installed_tools=", ".join(installed_tools[:15]),
+            installed_tools=installed_str,
         )
 
         response = await self._ollama.generate(
@@ -94,9 +104,7 @@ class CyberTaskRouter:
             temperature=0.1,
         )
 
-        result = self._parse_routing_result(response, target, scores)
-        result.reasoning = response
-
+        result = self._parse_routing_result(response, target, scores, all_installed)
         logger.info(
             "Routed %s: %d tools selected",
             phase_name,
@@ -109,8 +117,10 @@ class CyberTaskRouter:
         response: str,
         target: str,
         scores: list[ToolScore],
+        all_installed: list[str] | None = None,
     ) -> RoutingResult:
         result = RoutingResult()
+        installed_set = set(all_installed or [])
 
         try:
             json_str = self._extract_json(response)
@@ -118,6 +128,10 @@ class CyberTaskRouter:
 
             for tool_data in data.get("selected_tools", []):
                 tool_name = tool_data.get("tool_name", "")
+                if installed_set and tool_name not in installed_set:
+                    logger.warning("Tool %s is not installed on system, skipping", tool_name)
+                    continue
+
                 tool_def = self._registry.get_tool(tool_name)
 
                 cmd_plan = None
@@ -149,22 +163,30 @@ class CyberTaskRouter:
 
         except (json.JSONDecodeError, KeyError, TypeError) as e:
             logger.warning("Failed to parse routing JSON: %s", e)
-            if scores:
-                best = scores[0]
-                tool_def = self._registry.get_tool(best.tool_name)
-                if tool_def:
-                    cmd_plan = self._planner.create_command_plan(tool_def, target)
-                    result.selected_tools.append(ToolSelection(
-                        tool_name=best.tool_name,
-                        reason="Highest scoring tool from registry",
-                        command_plan=cmd_plan,
-                        score=best.total_score,
-                    ))
+
+        if not result.selected_tools and installed_set:
+            general_scores = self._planner.score_tools(
+                required_capabilities=[],
+                input_types=[],
+                output_types=[],
+                risk_limit="MEDIUM_RISK",
+            )
+            for score in general_scores:
+                if score.tool_name in installed_set:
+                    tool_def = self._registry.get_tool(score.tool_name)
+                    if tool_def:
+                        cmd_plan = self._planner.create_command_plan(tool_def, target)
+                        result.selected_tools.append(ToolSelection(
+                            tool_name=score.tool_name,
+                            reason=f"Installed fallback tool ({score.tool_name})",
+                            command_plan=cmd_plan,
+                            score=score.total_score,
+                        ))
+                        break
 
         return result
 
     def _extract_json(self, text: str) -> str:
-        import re
         if "```json" in text:
             start = text.index("```json") + 7
             end = text.find("```", start)
@@ -182,6 +204,7 @@ class CyberTaskRouter:
                 raw = text
         raw = re.sub(r',\s*([\]}])', r'\1', raw)
         return raw
+
     def route_deterministic(
         self,
         category: str,
@@ -199,7 +222,7 @@ class CyberTaskRouter:
 
         result = RoutingResult()
         for score in scores[:3]:
-            if score.installation_status > 0 and score.total_score > 10:
+            if score.installation_status > 0 and score.total_score > 10 and self._registry.is_installed(score.tool_name):
                 tool_def = self._registry.get_tool(score.tool_name)
                 if tool_def:
                     cmd_plan = self._planner.create_command_plan(tool_def, target)
