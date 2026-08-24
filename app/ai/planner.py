@@ -1,6 +1,7 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
+import re
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -14,14 +15,14 @@ logger = get_logger("ai.planner")
 
 
 class TaskPhase(BaseModel):
-    phase_number: int
-    name: str
+    phase_number: int | str = 1
+    name: str = ""
     description: str = ""
     category: str = ""
     required_capabilities: list[str] = Field(default_factory=list)
     expected_outputs: list[str] = Field(default_factory=list)
     risk_level: str = "LOW_RISK"
-    depends_on: list[int] = Field(default_factory=list)
+    depends_on: list[Any] = Field(default_factory=list)
     status: str = "pending"
     results: dict[str, Any] = Field(default_factory=dict)
 
@@ -48,9 +49,9 @@ class Planner:
     ) -> TaskPlan:
         prompt = TASK_DECOMPOSITION_TEMPLATE.format(
             user_request=user_request,
-            scope_info=scope_info or "No scope defined yet",
+            scope_info=scope_info or "No explicit scope defined",
             available_backends=available_backends or "native, wsl2",
-            available_tools=available_tools or "See tool registry",
+            available_tools=available_tools or "nmap, dig, whois, curl",
         )
 
         response = await self._ollama.generate(
@@ -61,7 +62,11 @@ class Planner:
 
         plan = self._parse_plan(response)
         plan.raw_response = response
-        logger.info("Task decomposed: intent=%s, phases=%d", plan.intent, len(plan.phases))
+        logger.info(
+            "Task decomposed: intent=%s, phases=%d",
+            plan.intent,
+            len(plan.phases),
+        )
         return plan
 
     def _parse_plan(self, response: str) -> TaskPlan:
@@ -70,39 +75,70 @@ class Planner:
             data = json.loads(json_str)
 
             phases = []
-            for phase_data in data.get("phases", []):
+            for i, phase_data in enumerate(data.get("phases", [])):
+                raw_depends = phase_data.get("depends_on", [])
+                if isinstance(raw_depends, (int, str)):
+                    raw_depends = [raw_depends]
+                elif not isinstance(raw_depends, list):
+                    raw_depends = []
+
+                cleaned_depends = []
+                for d in raw_depends:
+                    if isinstance(d, int):
+                        cleaned_depends.append(d)
+                    elif isinstance(d, str):
+                        digits = re.findall(r'\d+', d)
+                        if digits:
+                            cleaned_depends.append(int(digits[0]))
+
+                raw_num = phase_data.get("phase_number", i + 1)
+                if isinstance(raw_num, str):
+                    digits = re.findall(r'\d+', raw_num)
+                    phase_num = int(digits[0]) if digits else i + 1
+                else:
+                    phase_num = int(raw_num) if raw_num else i + 1
+
                 phases.append(TaskPhase(
-                    phase_number=phase_data.get("phase_number", len(phases) + 1),
-                    name=phase_data.get("name", ""),
-                    description=phase_data.get("description", ""),
-                    category=phase_data.get("category", ""),
-                    required_capabilities=phase_data.get("required_capabilities", []),
-                    expected_outputs=phase_data.get("expected_outputs", []),
-                    risk_level=phase_data.get("risk_level", "LOW_RISK"),
-                    depends_on=phase_data.get("depends_on", []),
+                    phase_number=phase_num,
+                    name=str(phase_data.get("name", f"Phase {phase_num}")),
+                    description=str(phase_data.get("description", "")),
+                    category=str(phase_data.get("category", "NETWORK_RECON")),
+                    required_capabilities=list(phase_data.get("required_capabilities", [])),
+                    expected_outputs=list(phase_data.get("expected_outputs", [])),
+                    risk_level=str(phase_data.get("risk_level", "LOW_RISK")),
+                    depends_on=cleaned_depends,
                 ))
 
+            if not phases:
+                phases = [TaskPhase(
+                    phase_number=1,
+                    name="Security Reconnaissance",
+                    description="Perform security reconnaissance on target",
+                    category="NETWORK_RECON",
+                )]
+
             return TaskPlan(
-                intent=data.get("intent", ""),
-                target=data.get("target", ""),
-                authorization_required=data.get("authorization_required", True),
-                passive_only=data.get("passive_only", False),
+                intent=str(data.get("intent", "security_investigation")),
+                target=str(data.get("target", "")),
+                authorization_required=bool(data.get("authorization_required", True)),
+                passive_only=bool(data.get("passive_only", False)),
                 phases=phases,
+                raw_response=response,
             )
-        except (json.JSONDecodeError, KeyError, TypeError) as e:
+        except Exception as e:
             logger.warning("Failed to parse plan JSON: %s", e)
             return TaskPlan(
-                intent="unparsed_request",
+                intent="security_investigation",
                 phases=[TaskPhase(
                     phase_number=1,
-                    name="general_task",
-                    description=response[:500],
-                    category="UTILITY",
+                    name="Security Reconnaissance",
+                    description=response[:500] if response else "General reconnaissance",
+                    category="NETWORK_RECON",
                 )],
+                raw_response=response,
             )
 
     def _extract_json(self, text: str) -> str:
-        import re
         if "```json" in text:
             start = text.index("```json") + 7
             end = text.find("```", start)
