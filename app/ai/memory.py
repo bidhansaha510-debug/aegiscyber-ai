@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
@@ -34,6 +34,12 @@ class ConversationMemory:
 
     def get_chat_messages(self, limit: int = 20) -> list[dict[str, str]]:
         return [{"role": m["role"], "content": m["content"]} for m in self._messages[-limit:]]
+
+    def get_context_summary(self, limit: int = 10) -> str:
+        if not self._messages:
+            return "No previous conversation"
+        recent = self._messages[-limit:]
+        return "\n".join(f"{m['role'].capitalize()}: {m['content']}" for m in recent)
 
     def clear(self) -> None:
         self._messages.clear()
