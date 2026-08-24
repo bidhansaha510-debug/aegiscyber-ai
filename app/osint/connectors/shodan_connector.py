@@ -1,5 +1,6 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
+import os
 from typing import Any
 
 import httpx
@@ -16,10 +17,20 @@ class ShodanConnector(BaseOSINTConnector):
     SUPPORTED_ENTITIES = [EntityType.IP, EntityType.DOMAIN]
     API_URL = "https://api.shodan.io"
 
-    def __init__(self, api_key: str = "") -> None:
+    def __init__(self, api_key: str = "", secrets_manager: Any = None) -> None:
+        self._secrets = secrets_manager
         self._api_key = api_key
+        if not self._api_key and self._secrets:
+            self._api_key = self._secrets.get_secret("shodan_api_key") or ""
+        if not self._api_key:
+            self._api_key = os.environ.get("SHODAN_API_KEY", "")
 
     async def search(self, entity_type: EntityType, value: str, **kwargs: Any) -> list[OSINTResult]:
+        if not self._api_key and self._secrets:
+            self._api_key = self._secrets.get_secret("shodan_api_key") or ""
+        if not self._api_key:
+            self._api_key = os.environ.get("SHODAN_API_KEY", "")
+
         if not self._api_key:
             logger.warning("Shodan API key not configured, skipping")
             return []
@@ -85,6 +96,11 @@ class ShodanConnector(BaseOSINTConnector):
         return results
 
     async def health_check(self) -> bool:
+        if not self._api_key and self._secrets:
+            self._api_key = self._secrets.get_secret("shodan_api_key") or ""
+        if not self._api_key:
+            self._api_key = os.environ.get("SHODAN_API_KEY", "")
+
         if not self._api_key:
             return False
         try:

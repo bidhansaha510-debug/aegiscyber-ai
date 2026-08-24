@@ -1,5 +1,6 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
+import os
 from typing import Any
 
 import httpx
@@ -16,10 +17,20 @@ class URLScanConnector(BaseOSINTConnector):
     SUPPORTED_ENTITIES = [EntityType.DOMAIN, EntityType.URL, EntityType.IP]
     API_URL = "https://urlscan.io/api/v1"
 
-    def __init__(self, api_key: str = "") -> None:
+    def __init__(self, api_key: str = "", secrets_manager: Any = None) -> None:
+        self._secrets = secrets_manager
         self._api_key = api_key
+        if not self._api_key and self._secrets:
+            self._api_key = self._secrets.get_secret("urlscan_api_key") or ""
+        if not self._api_key:
+            self._api_key = os.environ.get("URLSCAN_API_KEY", "")
 
     async def search(self, entity_type: EntityType, value: str, **kwargs: Any) -> list[OSINTResult]:
+        if not self._api_key and self._secrets:
+            self._api_key = self._secrets.get_secret("urlscan_api_key") or ""
+        if not self._api_key:
+            self._api_key = os.environ.get("URLSCAN_API_KEY", "")
+
         results: list[OSINTResult] = []
         headers = {}
         if self._api_key:
@@ -36,29 +47,45 @@ class URLScanConnector(BaseOSINTConnector):
                 )
                 if response.status_code == 200:
                     data = response.json()
-                    for scan in data.get("results", []):
-                        page = scan.get("page", {})
-                        results.append(OSINTResult(
-                            source="urlscan.io",
-                            entity_type="url",
-                            value=page.get("url", ""),
-                            confidence=0.85,
-                            evidence=f"urlscan.io scan result for {value}",
-                            raw_data={
-                                "domain": page.get("domain", ""),
-                                "ip": page.get("ip", ""),
-                                "country": page.get("country", ""),
-                                "server": page.get("server", ""),
-                                "status": page.get("status", ""),
-                                "title": page.get("title", ""),
-                                "scan_id": scan.get("_id", ""),
-                            },
-                            relationships=[
-                                {"type": "resolves_to", "from": page.get("domain", ""), "to": page.get("ip", "")},
-                            ] if page.get("ip") else [],
-                        ))
+                    for item in data.get("results", []):
+                        page = item.get("page", {})
+                        page_domain = page.get("domain", "")
+                        page_ip = page.get("ip", "")
+                        page_url = page.get("url", "")
+                        page_server = page.get("server", "")
+
+                        if page_domain and page_domain != value:
+                            results.append(OSINTResult(
+                                source="urlscan",
+                                entity_type="domain",
+                                value=page_domain,
+                                confidence=0.8,
+                                evidence=f"Domain associated with {value} on URLScan",
+                                relationships=[{"type": "associated_with", "from": value, "to": page_domain}],
+                            ))
+
+                        if page_ip:
+                            results.append(OSINTResult(
+                                source="urlscan",
+                                entity_type="ip",
+                                value=page_ip,
+                                confidence=0.85,
+                                evidence=f"IP hosting {value} on URLScan",
+                                relationships=[{"type": "hosted_on", "from": value, "to": page_ip}],
+                            ))
+
+                        if page_server:
+                            results.append(OSINTResult(
+                                source="urlscan",
+                                entity_type="technology",
+                                value=page_server,
+                                confidence=0.75,
+                                evidence=f"Web server for {value}: {page_server}",
+                                relationships=[{"type": "uses_technology", "from": value, "to": page_server}],
+                            ))
+
         except Exception as e:
-            logger.error("urlscan.io search failed for %s: %s", value, e)
+            logger.error("URLScan search failed for %s: %s", value, e)
 
         return results
 

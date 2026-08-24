@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import asyncio
 import time
@@ -43,18 +43,19 @@ RELATIONSHIP_TYPE_MAP = {
 
 
 class OSINTEngine:
-    def __init__(self, graph: KnowledgeGraph | None = None) -> None:
+    def __init__(self, graph: KnowledgeGraph | None = None, secrets_manager: Any = None) -> None:
         self._connectors: dict[str, BaseOSINTConnector] = {}
         self._graph = graph or KnowledgeGraph()
+        self._secrets = secrets_manager
         self._register_defaults()
 
     def _register_defaults(self) -> None:
         self.register_connector(DNSConnector())
         self.register_connector(WhoisConnector())
         self.register_connector(CRTConnector())
-        self.register_connector(GitHubConnector())
-        self.register_connector(URLScanConnector())
-        self.register_connector(ShodanConnector())
+        self.register_connector(GitHubConnector(secrets_manager=self._secrets))
+        self.register_connector(URLScanConnector(secrets_manager=self._secrets))
+        self.register_connector(ShodanConnector(secrets_manager=self._secrets))
 
     def register_connector(self, connector: BaseOSINTConnector) -> None:
         self._connectors[connector.CONNECTOR_NAME] = connector

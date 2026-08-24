@@ -73,7 +73,7 @@ async def initialize_system() -> dict:
     parser_registry = ParserRegistry()
 
     knowledge_graph = KnowledgeGraph()
-    osint_engine = OSINTEngine(knowledge_graph)
+    osint_engine = OSINTEngine(knowledge_graph, secrets_manager=secrets_manager)
 
     ollama_client = OllamaClient()
 
