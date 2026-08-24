@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import asyncio
 from typing import Any, AsyncGenerator
@@ -18,6 +18,18 @@ class OllamaClient:
         self._model = model or config.ollama.model
         self._timeout = aiohttp.ClientTimeout(total=config.ollama.timeout)
         self._session: aiohttp.ClientSession | None = None
+
+    @property
+    def model(self) -> str:
+        return self._model
+
+    @model.setter
+    def model(self, value: str) -> None:
+        self._model = value
+
+    @property
+    def host(self) -> str:
+        return self._host
 
     async def _get_session(self) -> aiohttp.ClientSession:
         if self._session is None or self._session.closed:
@@ -49,16 +61,16 @@ class OllamaClient:
             logger.warning("Ollama health check failed: %s", e)
             return False
 
-    async def list_models(self) -> list[dict[str, Any]]:
+    async def list_models(self) -> list[str]:
         try:
             session = await self._get_session()
             async with session.get(f"{self._host}/api/tags") as resp:
                 if resp.status == 200:
                     data = await resp.json()
-                    return data.get("models", [])
+                    return [m["name"] for m in data.get("models", [])]
                 return []
         except Exception as e:
-            logger.error("Failed to list models: %s", e)
+            logger.error("Failed to list Ollama models: %s", e)
             return []
 
     async def generate(
@@ -68,10 +80,9 @@ class OllamaClient:
         model: str | None = None,
         temperature: float | None = None,
         max_tokens: int | None = None,
-        stream: bool = False,
     ) -> str:
         config = get_config()
-        payload: dict[str, Any] = {
+        payload = {
             "model": model or self._model,
             "prompt": prompt,
             "stream": False,
@@ -89,8 +100,8 @@ class OllamaClient:
                 if resp.status == 200:
                     data = await resp.json()
                     return data.get("response", "")
-                error = await resp.text()
-                logger.error("Ollama generate error (%d): %s", resp.status, error)
+                error_text = await resp.text()
+                logger.error("Ollama generate error (%d): %s", resp.status, error_text)
                 return ""
         except Exception as e:
             logger.error("Ollama generate failed: %s", e)
@@ -104,12 +115,13 @@ class OllamaClient:
         temperature: float | None = None,
     ) -> AsyncGenerator[str, None]:
         config = get_config()
-        payload: dict[str, Any] = {
+        payload = {
             "model": model or self._model,
             "prompt": prompt,
             "stream": True,
             "options": {
                 "temperature": temperature if temperature is not None else config.ollama.temperature,
+                "num_predict": config.ollama.max_tokens,
             },
         }
         if system:
@@ -131,9 +143,6 @@ class OllamaClient:
                                     return
                             except Exception:
                                 continue
-                else:
-                    error = await resp.text()
-                    logger.error("Ollama stream error (%d): %s", resp.status, error)
         except Exception as e:
             logger.error("Ollama stream failed: %s", e)
 
@@ -142,16 +151,15 @@ class OllamaClient:
         messages: list[dict[str, str]],
         model: str | None = None,
         temperature: float | None = None,
-        max_tokens: int | None = None,
     ) -> str:
         config = get_config()
-        payload: dict[str, Any] = {
+        payload = {
             "model": model or self._model,
             "messages": messages,
             "stream": False,
             "options": {
                 "temperature": temperature if temperature is not None else config.ollama.temperature,
-                "num_predict": max_tokens or config.ollama.max_tokens,
+                "num_predict": config.ollama.max_tokens,
             },
         }
 
@@ -161,8 +169,8 @@ class OllamaClient:
                 if resp.status == 200:
                     data = await resp.json()
                     return data.get("message", {}).get("content", "")
-                error = await resp.text()
-                logger.error("Ollama chat error (%d): %s", resp.status, error)
+                error_text = await resp.text()
+                logger.error("Ollama chat error (%d): %s", resp.status, error_text)
                 return ""
         except Exception as e:
             logger.error("Ollama chat failed: %s", e)
@@ -175,12 +183,13 @@ class OllamaClient:
         temperature: float | None = None,
     ) -> AsyncGenerator[str, None]:
         config = get_config()
-        payload: dict[str, Any] = {
+        payload = {
             "model": model or self._model,
             "messages": messages,
             "stream": True,
             "options": {
                 "temperature": temperature if temperature is not None else config.ollama.temperature,
+                "num_predict": config.ollama.max_tokens,
             },
         }
 
