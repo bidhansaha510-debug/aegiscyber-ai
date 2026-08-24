@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import enum
 import uuid
@@ -28,19 +28,31 @@ class CommandPlan(BaseModel):
     timeout: int = 120
     environment: dict[str, str] = Field(default_factory=dict)
     explanation: str = ""
-    backend: str = "native"
+    backend: str = "wsl2"
     risk_level: str = "LOW_RISK"
 
     def to_command_string(self) -> str:
-        parts = [self.executable] + self.arguments
-        if self.target and self.target not in self.arguments:
-            parts.append(self.target)
+        parts = [self.executable]
+        target_clean = self.target.strip().lower() if self.target else ""
+        seen_target = False
+        for arg in self.arguments:
+            if target_clean and arg.strip().lower() == target_clean:
+                seen_target = True
+            parts.append(arg)
+        if self.target and not seen_target:
+            parts.append(self.target.strip())
         return " ".join(parts)
 
     def to_command_list(self) -> list[str]:
-        parts = [self.executable] + self.arguments
-        if self.target and self.target not in self.arguments:
-            parts.append(self.target)
+        parts = [self.executable]
+        target_clean = self.target.strip().lower() if self.target else ""
+        seen_target = False
+        for arg in self.arguments:
+            if target_clean and arg.strip().lower() == target_clean:
+                seen_target = True
+            parts.append(arg)
+        if self.target and not seen_target:
+            parts.append(self.target.strip())
         return parts
 
 
@@ -74,14 +86,15 @@ class ExecutionUpdate(BaseModel):
     status: ExecutionStatus
     stdout_chunk: str = ""
     stderr_chunk: str = ""
-    progress: float = 0.0
-    timestamp: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    exit_code: int | None = None
+    percentage: float = 0.0
+    message: str = ""
 
 
 class PolicyDecision(BaseModel):
-    allowed: bool
-    risk: str
-    reason: str
+    allowed: bool = True
+    risk: str = "LOW_RISK"
     requires_approval: bool = False
-    blocked_arguments: list[str] = Field(default_factory=list)
+    reason: str = ""
     warnings: list[str] = Field(default_factory=list)
+    mitigations: list[str] = Field(default_factory=list)
