@@ -42,12 +42,14 @@ class ScopeDialog(QDialog):
 
         self._type_combo = QComboBox()
         for scope_type in ScopeType:
-            self._type_combo.addItem(scope_type.value, scope_type)
+            val = scope_type.value if hasattr(scope_type, "value") else str(scope_type)
+            self._type_combo.addItem(val, val)
         self._type_combo.setMinimumWidth(150)
         input_layout.addWidget(self._type_combo)
 
         self._value_input = QLineEdit()
         self._value_input.setPlaceholderText("e.g., 192.168.1.0/24 or example.com")
+        self._value_input.returnPressed.connect(self._add_entry)
         input_layout.addWidget(self._value_input, 1)
 
         add_btn = QPushButton("+ Add")
@@ -86,10 +88,11 @@ class ScopeDialog(QDialog):
         value = self._value_input.text().strip()
         if not value:
             return
-        scope_type = self._type_combo.currentData()
-        entry = {"type": scope_type.value, "value": value}
+        raw_type = self._type_combo.currentData() or self._type_combo.currentText()
+        scope_type_str = raw_type.value if hasattr(raw_type, "value") else str(raw_type)
+        entry = {"type": scope_type_str, "value": value}
         self._entries.append(entry)
-        self._scope_list.addItem(f"[{scope_type.value}] {value}")
+        self._scope_list.addItem(f"[{scope_type_str}] {value}")
         self._value_input.clear()
 
     def _remove_entry(self) -> None:
@@ -104,7 +107,9 @@ class ScopeDialog(QDialog):
             self.accept()
 
     def set_entries(self, entries: list[dict]) -> None:
-        self._entries = entries
+        self._entries = list(entries)
         self._scope_list.clear()
-        for entry in entries:
-            self._scope_list.addItem(f"[{entry['type']}] {entry['value']}")
+        for entry in self._entries:
+            t = entry.get("type", "domain")
+            v = entry.get("value", "")
+            self._scope_list.addItem(f"[{t}] {v}")
