@@ -70,7 +70,6 @@ async def initialize_system() -> dict:
     logger.info("Loaded %d tool definitions", tools_loaded)
 
     tool_discovery = ToolDiscovery(tool_registry, exec_manager)
-    await tool_discovery.scan_all_tools()
 
     policy_engine = PolicyEngine(auth_manager)
     command_planner = CommandPlanner(tool_registry)
@@ -134,7 +133,7 @@ def main() -> None:
 
     future = asyncio.run_coroutine_threadsafe(initialize_system(), async_thread.loop)
     try:
-        components = future.result(timeout=15.0)
+        components = future.result(timeout=45.0)
     except Exception as e:
         logger.critical("System initialization failed: %s", e, exc_info=True)
         sys.exit(1)
