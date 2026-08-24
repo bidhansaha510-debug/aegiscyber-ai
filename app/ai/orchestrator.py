@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 import uuid
@@ -75,71 +75,58 @@ class Orchestrator:
         self._memory = MemoryManager()
 
         self._state = OrchestratorState()
-        self._on_reasoning_update: list[Callable] = []
-        self._on_approval_required: Callable | None = None
+        self._on_reasoning_update: list[Callable[[OrchestratorState], None]] = []
+        self._on_approval_required: Callable[[CommandPlan, PolicyDecision], bool] | None = None
         self._approval_response: bool | None = None
 
     @property
     def state(self) -> OrchestratorState:
         return self._state
 
-    @property
-    def memory(self) -> MemoryManager:
-        return self._memory
-
-    def on_reasoning_update(self, callback: Callable) -> None:
+    def on_reasoning_update(self, callback: Callable[[OrchestratorState], None]) -> None:
         self._on_reasoning_update.append(callback)
 
-    def set_approval_handler(self, handler: Callable) -> None:
+    def set_approval_handler(self, handler: Callable[[CommandPlan, PolicyDecision], bool]) -> None:
         self._on_approval_required = handler
 
-    def set_approval_response(self, approved: bool) -> None:
+    def submit_approval_decision(self, approved: bool) -> None:
         self._approval_response = approved
 
     async def process_request(self, user_request: str, investigation_id: str = "") -> str:
         if self._kill_switch.is_engaged:
-            return "Emergency stop is active. Disengage the kill switch before proceeding."
+            return "Execution blocked: Emergency stop (Kill Switch) is currently engaged."
 
-        if not investigation_id:
-            investigation_id = str(uuid.uuid4())[:12]
-
+        investigation_id = investigation_id or str(uuid.uuid4())[:8]
         self._state = OrchestratorState(
             investigation_id=investigation_id,
             is_running=True,
         )
-        inv_memory = self._memory.get_or_create_investigation(investigation_id)
+
+        inv_memory = self._memory.get_investigation(investigation_id)
         self._memory.conversation.add_message("user", user_request)
-        self._audit.log_user_action("process_request", {"request": user_request[:500], "investigation_id": investigation_id})
 
         try:
             self._update_reasoning("UNDERSTANDING REQUEST", "active", "Analyzing user intent")
 
+            scope_info = self._format_scope()
             available_backends = ", ".join(self._exec_manager.get_available_backends())
-            installed_tools = ", ".join(
+            available_tools = ", ".join(
                 t.name for t in self._tool_registry.get_all_tools()
                 if self._tool_registry.is_installed(t.name)
             )
 
             plan = await self._planner.decompose(
                 user_request=user_request,
-                scope_info=self._format_scope(),
+                scope_info=scope_info,
                 available_backends=available_backends,
-                available_tools=installed_tools[:500],
+                available_tools=available_tools,
             )
 
             self._update_reasoning("UNDERSTANDING REQUEST", "complete", f"Intent: {plan.intent}")
             self._update_reasoning("TASK PLAN", "active", f"{len(plan.phases)} phases planned")
 
-            if plan.target:
-                inv_memory.add_target(plan.target)
-
-            if plan.authorization_required and plan.target:
-                authorized, reason = self._auth_manager.check_authorization(plan.target, investigation_id)
-                if not authorized:
-                    self._update_reasoning("AUTHORIZATION", "blocked", reason)
-                    return f"Target '{plan.target}' is not in the authorized scope. Please add it to the scope first.\n\nReason: {reason}"
-
             all_findings: list[dict[str, Any]] = []
+            blocked_reasons: list[str] = []
 
             for phase in plan.phases:
                 if self._kill_switch.is_engaged:
@@ -179,12 +166,16 @@ class Orchestrator:
                             policy.reason,
                             policy.risk,
                         )
+                        blocked_reasons.append(policy.reason)
                         self._update_reasoning(f"TOOL: {tool_selection.tool_name}", "blocked", policy.reason)
                         continue
 
                     if policy.requires_approval:
-                        self._update_reasoning(f"TOOL: {tool_selection.tool_name}", "awaiting_approval",
-                                               f"Risk: {policy.risk} - Requires approval")
+                        self._update_reasoning(
+                            f"TOOL: {tool_selection.tool_name}",
+                            "awaiting_approval",
+                            f"Risk: {policy.risk} - Requires approval",
+                        )
                         approved = await self._request_approval(tool_selection.command_plan, policy)
                         if not approved:
                             self._update_reasoning(f"TOOL: {tool_selection.tool_name}", "skipped", "User declined")
@@ -215,8 +206,11 @@ class Orchestrator:
                     )
 
                     if exec_result.status == ExecutionStatus.COMPLETED:
-                        self._update_reasoning(f"TOOL: {tool_selection.tool_name}", "complete",
-                                               f"Completed in {exec_result.duration_seconds:.1f}s")
+                        self._update_reasoning(
+                            f"TOOL: {tool_selection.tool_name}",
+                            "complete",
+                            f"Completed in {exec_result.duration_seconds:.1f}s",
+                        )
 
                         parsed = self._parser_registry.parse_output(
                             exec_result.stdout,
@@ -256,6 +250,18 @@ class Orchestrator:
 
             if all_findings:
                 final_report = await self._analyst.summarize_findings(all_findings, plan.target)
+            elif blocked_reasons:
+                target_str = plan.target or "the specified target"
+                unique_reasons = "\n".join(f"- {r}" for r in set(blocked_reasons))
+                final_report = (
+                    f"**Execution Blocked by Policy Engine**\n\n"
+                    f"Operations on `{target_str}` could not proceed due to security authorization boundaries:\n"
+                    f"{unique_reasons}\n\n"
+                    f"**How to authorize this target:**\n"
+                    f"1. Click the **Scope** button at the top-right of the window.\n"
+                    f"2. Add `{target_str}` as an authorized target (Domain, IP, or IP range).\n"
+                    f"3. Click **Confirm Scope** and re-submit your security testing request."
+                )
             else:
                 final_report = await self._ollama.chat(
                     messages=self._memory.conversation.get_chat_messages() + [
