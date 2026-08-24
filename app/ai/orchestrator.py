@@ -75,55 +75,116 @@ class Orchestrator:
         self._memory = MemoryManager()
 
         self._state = OrchestratorState()
-        self._on_reasoning_update: list[Callable[[OrchestratorState], None]] = []
-        self._on_approval_required: Callable[[CommandPlan, PolicyDecision], bool] | None = None
+        self._reasoning_callbacks: list[Callable] = []
+        self._on_approval_required: Callable | None = None
         self._approval_response: bool | None = None
+        self._command_started_callbacks: list[Callable] = []
+        self._command_finished_callbacks: list[Callable] = []
 
     @property
     def state(self) -> OrchestratorState:
         return self._state
 
-    def on_reasoning_update(self, callback: Callable[[OrchestratorState], None]) -> None:
-        self._on_reasoning_update.append(callback)
+    @property
+    def memory(self) -> MemoryManager:
+        return self._memory
 
-    def set_approval_handler(self, handler: Callable[[CommandPlan, PolicyDecision], bool]) -> None:
+    def on_reasoning_update(self, callback: Callable) -> None:
+        self._reasoning_callbacks.append(callback)
+
+    def on_command_started(self, callback: Callable) -> None:
+        self._command_started_callbacks.append(callback)
+
+    def on_command_finished(self, callback: Callable) -> None:
+        self._command_finished_callbacks.append(callback)
+
+    def _emit_command_started(self, tool: str, backend: str, cmd: str) -> None:
+        for cb in self._command_started_callbacks:
+            try:
+                cb(tool, backend, cmd)
+            except Exception as e:
+                logger.error("Command started callback error: %s", e)
+
+    def _emit_command_finished(self, tool: str, success: bool, duration: float) -> None:
+        for cb in self._command_finished_callbacks:
+            try:
+                cb(tool, success, duration)
+            except Exception as e:
+                logger.error("Command finished callback error: %s", e)
+
+    def set_approval_handler(self, handler: Callable) -> None:
         self._on_approval_required = handler
 
     def submit_approval_decision(self, approved: bool) -> None:
         self._approval_response = approved
 
-    async def process_request(self, user_request: str, investigation_id: str = "") -> str:
-        if self._kill_switch.is_engaged:
-            return "Execution blocked: Emergency stop (Kill Switch) is currently engaged."
+    def _update_reasoning(self, step: str, status: str, detail: str = "") -> None:
+        existing = None
+        for s in self._state.reasoning_steps:
+            if s.step == step:
+                existing = s
+                break
 
-        investigation_id = investigation_id or str(uuid.uuid4())[:8]
+        if existing:
+            existing.status = status
+            existing.detail = detail
+        else:
+            self._state.reasoning_steps.append(ReasoningStep(
+                step=step,
+                status=status,
+                detail=detail,
+            ))
+
+        steps_data = [s.model_dump() for s in self._state.reasoning_steps]
+        for cb in self._reasoning_callbacks:
+            try:
+                cb(steps_data)
+            except Exception as e:
+                logger.error("Reasoning callback error: %s", e)
+
+    async def process_request(self, user_request: str) -> str:
+        if self._kill_switch.is_engaged:
+            return "Operation blocked: Emergency kill switch is active."
+
+        investigation_id = f"inv_{uuid.uuid4().hex[:8]}"
         self._state = OrchestratorState(
             investigation_id=investigation_id,
             is_running=True,
         )
 
-        inv_memory = self._memory.get_or_create_investigation(investigation_id)
+        inv_memory = self._memory.get_investigation(investigation_id)
+
         self._memory.conversation.add_message("user", user_request)
 
         try:
-            self._update_reasoning("UNDERSTANDING REQUEST", "active", "Analyzing user intent")
+            self._update_reasoning("UNDERSTANDING REQUEST", "active", "Analyzing intent and scope")
 
-            scope_info = self._format_scope()
-            available_backends = ", ".join(self._exec_manager.get_available_backends())
-            available_tools = ", ".join(
-                t.name for t in self._tool_registry.get_all_tools()
-                if self._tool_registry.is_installed(t.name)
-            )
+            scope_text = self._format_scope()
 
-            plan = await self._planner.decompose(
+            plan = await self._planner.plan_task(
                 user_request=user_request,
-                scope_info=scope_info,
-                available_backends=available_backends,
-                available_tools=available_tools,
+                context_summary=self._memory.conversation.get_context_summary(),
+                scope_constraints=scope_text,
             )
 
-            self._update_reasoning("UNDERSTANDING REQUEST", "complete", f"Intent: {plan.intent}")
-            self._update_reasoning("TASK PLAN", "active", f"{len(plan.phases)} phases planned")
+            self._update_reasoning(
+                "UNDERSTANDING REQUEST",
+                "complete",
+                f"Intent: {plan.intent}",
+            )
+
+            self._update_reasoning(
+                "TASK PLAN",
+                "active",
+                f"{len(plan.phases)} phases planned",
+            )
+
+            for p in plan.phases:
+                self._update_reasoning(
+                    f"PHASE {p.phase_number}: {p.name}",
+                    "pending",
+                    p.description,
+                )
 
             all_findings: list[dict[str, Any]] = []
             blocked_reasons: list[str] = []
@@ -192,11 +253,23 @@ class Orchestrator:
                         risk_level=policy.risk,
                     )
 
+                    self._emit_command_started(
+                        tool_selection.tool_name,
+                        tool_selection.command_plan.backend,
+                        tool_selection.command_plan.to_command_string(),
+                    )
+
                     exec_request = ExecutionRequest(
                         task_id=investigation_id,
                         command_plan=tool_selection.command_plan,
                     )
                     exec_result = await self._exec_manager.execute(exec_request)
+
+                    self._emit_command_finished(
+                        tool_selection.tool_name,
+                        exec_result.status == ExecutionStatus.COMPLETED,
+                        exec_result.duration_seconds,
+                    )
 
                     self._memory.tool_memory.record_execution(
                         tool_selection.tool_name,
@@ -318,24 +391,3 @@ class Orchestrator:
         for entry in scope.entries:
             lines.append(f"{entry.scope_type.value}: {entry.value}")
         return "\n".join(lines)
-
-    def _update_reasoning(self, step: str, status: str, detail: str) -> None:
-        existing = None
-        for rs in self._state.reasoning_steps:
-            if rs.step == step:
-                existing = rs
-                break
-
-        if existing:
-            existing.status = status
-            existing.detail = detail
-        else:
-            self._state.reasoning_steps.append(ReasoningStep(
-                step=step, status=status, detail=detail,
-            ))
-
-        for callback in self._on_reasoning_update:
-            try:
-                callback(self._state)
-            except Exception as e:
-                logger.error("Reasoning update callback error: %s", e)

@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import asyncio
 import time
@@ -92,8 +92,6 @@ class WSLBackend:
         cmd_string = command_plan.to_command_string()
         wsl_cmd = ["wsl", "-d", self._distro, "--", "bash", "-c", cmd_string]
 
-        start_time = time.monotonic()
-
         yield ExecutionUpdate(
             execution_id=execution_id,
             status=ExecutionStatus.RUNNING,
@@ -107,56 +105,74 @@ class WSLBackend:
                 cwd=command_plan.working_directory,
             )
 
+            queue: asyncio.Queue[tuple[bool, str] | None] = asyncio.Queue()
+            active_readers = 2
+
+            async def read_stream(stream: asyncio.StreamReader | None, is_stderr: bool) -> None:
+                nonlocal active_readers
+                if stream:
+                    while True:
+                        line = await stream.readline()
+                        if not line:
+                            break
+                        decoded = line.decode("utf-8", errors="replace")
+                        await queue.put((is_stderr, decoded))
+                active_readers -= 1
+                if active_readers == 0:
+                    await queue.put(None)
+
+            asyncio.create_task(read_stream(proc.stdout, False))
+            asyncio.create_task(read_stream(proc.stderr, True))
+
             stdout_chunks: list[str] = []
             stderr_chunks: list[str] = []
-            total_output = 0
+            timeout_limit = command_plan.timeout if command_plan.timeout and command_plan.timeout > 0 else 3600
 
-            async def read_stream(stream: asyncio.StreamReader, chunks: list[str]) -> None:
-                nonlocal total_output
-                while True:
-                    line = await stream.readline()
-                    if not line:
-                        break
-                    decoded = line.decode("utf-8", errors="replace")
-                    total_output += len(decoded)
-                    if total_output <= self._max_output_size:
-                        chunks.append(decoded)
-
-            try:
-                await asyncio.wait_for(
-                    asyncio.gather(
-                        read_stream(proc.stdout, stdout_chunks),
-                        read_stream(proc.stderr, stderr_chunks),
-                    ),
-                    timeout=command_plan.timeout,
-                )
-                await proc.wait()
-            except asyncio.TimeoutError:
-                proc.terminate()
+            while True:
                 try:
-                    await asyncio.wait_for(proc.wait(), timeout=5)
+                    item = await asyncio.wait_for(queue.get(), timeout=timeout_limit)
                 except asyncio.TimeoutError:
-                    proc.kill()
-                    await proc.wait()
+                    try:
+                        proc.terminate()
+                        await asyncio.sleep(0.5)
+                        proc.kill()
+                    except Exception:
+                        pass
+                    yield ExecutionUpdate(
+                        execution_id=execution_id,
+                        status=ExecutionStatus.TIMEOUT,
+                        stdout_chunk="".join(stdout_chunks),
+                        stderr_chunk=f"Process timed out after {timeout_limit}s",
+                    )
+                    return
 
-                yield ExecutionUpdate(
-                    execution_id=execution_id,
-                    status=ExecutionStatus.TIMEOUT,
-                    stdout_chunk="".join(stdout_chunks),
-                    stderr_chunk=f"Process timed out after {command_plan.timeout}s",
-                )
-                return
+                if item is None:
+                    break
 
-            stdout_text = "".join(stdout_chunks)
-            stderr_text = "".join(stderr_chunks)
+                is_stderr, chunk = item
+                if is_stderr:
+                    stderr_chunks.append(chunk)
+                    yield ExecutionUpdate(
+                        execution_id=execution_id,
+                        status=ExecutionStatus.RUNNING,
+                        stderr_chunk=chunk,
+                    )
+                else:
+                    stdout_chunks.append(chunk)
+                    yield ExecutionUpdate(
+                        execution_id=execution_id,
+                        status=ExecutionStatus.RUNNING,
+                        stdout_chunk=chunk,
+                    )
+
+            await proc.wait()
             final_status = ExecutionStatus.COMPLETED if proc.returncode == 0 else ExecutionStatus.FAILED
-
             yield ExecutionUpdate(
                 execution_id=execution_id,
                 status=final_status,
-                stdout_chunk=stdout_text,
-                stderr_chunk=stderr_text,
-                progress=1.0,
+                stdout_chunk="".join(stdout_chunks),
+                stderr_chunk="".join(stderr_chunks),
+                exit_code=proc.returncode,
             )
 
         except Exception as e:

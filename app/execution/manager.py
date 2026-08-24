@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import asyncio
 import time
@@ -76,7 +76,7 @@ class ExecutionManager:
         return self._backend_availability.get(backend_name, False)
 
     def get_available_backends(self) -> list[str]:
-        return [name for name, available in self._backend_availability.items() if available]
+        return [b for b, avail in self._backend_availability.items() if avail]
 
     async def execute(self, request: ExecutionRequest) -> ExecutionResult:
         if self._kill_switch.is_engaged:
@@ -87,7 +87,7 @@ class ExecutionManager:
                 backend=request.command_plan.backend,
                 command=request.command_plan.to_command_string(),
                 status=ExecutionStatus.BLOCKED,
-                error_message="Kill switch is engaged",
+                error_message="Execution blocked: Kill switch is engaged",
             )
 
         valid, issues = self._sandbox.validate_command_plan(request.command_plan)
@@ -141,12 +141,15 @@ class ExecutionManager:
         self._executions[request.id] = result
 
         try:
+            full_stdout: list[str] = []
+            full_stderr: list[str] = []
+
             async for update in backend.execute(request.command_plan, request.id):
                 result.status = update.status
                 if update.stdout_chunk:
-                    result.stdout = update.stdout_chunk
+                    full_stdout.append(update.stdout_chunk)
                 if update.stderr_chunk:
-                    result.stderr = update.stderr_chunk
+                    full_stderr.append(update.stderr_chunk)
 
                 for callback in self._update_callbacks:
                     try:
@@ -157,6 +160,8 @@ class ExecutionManager:
                     except Exception as e:
                         logger.error("Update callback error: %s", e)
 
+            result.stdout = "".join(full_stdout)
+            result.stderr = "".join(full_stderr)
             duration = time.monotonic() - start_time
             result.completed_at = datetime.now(timezone.utc).isoformat()
             result.duration_seconds = round(duration, 3)
