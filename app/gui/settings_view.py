@@ -32,7 +32,7 @@ class SettingsPage(QWidget):
         self._ollama_host = QLineEdit("http://localhost:11434")
         ollama_layout.addRow("Host:", self._ollama_host)
 
-        self._ollama_model = QLineEdit("mistral:7b-instruct-v0.3-q6_K")
+        self._ollama_model = QLineEdit("llama3:latest")
         ollama_layout.addRow("Model:", self._ollama_model)
 
         self._ollama_temp = QLineEdit("0.1")
@@ -126,7 +126,7 @@ class SettingsPage(QWidget):
 
     def load_settings(self, settings: dict) -> None:
         self._ollama_host.setText(settings.get("ollama_host", "http://localhost:11434"))
-        self._ollama_model.setText(settings.get("ollama_model", "mistral:7b-instruct-v0.3-q6_K"))
+        self._ollama_model.setText(settings.get("ollama_model", "llama3:latest"))
         self._ollama_temp.setText(str(settings.get("ollama_temperature", 0.1)))
         self._ollama_tokens.setValue(settings.get("ollama_max_tokens", 4096))
         self._auto_approve_safe.setChecked(settings.get("auto_approve_safe", True))

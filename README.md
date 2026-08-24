@@ -196,7 +196,7 @@ pip install -r requirements.txt
 ```bash
 # Download Ollama from https://ollama.com/download
 # After installation, pull a model:
-ollama pull llama3.1:latest
+ollama pull llama3:latest
 
 # For embeddings (optional):
 ollama pull nomic-embed-text
@@ -516,7 +516,7 @@ Configuration is managed through environment variables (prefix: `AEGIS_`) or `ap
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `AEGIS_OLLAMA__HOST` | `http://localhost:11434` | Ollama server URL |
-| `AEGIS_OLLAMA__MODEL` | `llama3.1:latest` | Default inference model |
+| `AEGIS_OLLAMA__MODEL` | `llama3:latest` | Default inference model |
 | `AEGIS_OLLAMA__TEMPERATURE` | `0.1` | Model temperature (lower = more deterministic) |
 | `AEGIS_OLLAMA__MAX_TOKENS` | `4096` | Maximum generation tokens |
 | `AEGIS_OLLAMA__EMBEDDING_MODEL` | `nomic-embed-text` | Model for embeddings |

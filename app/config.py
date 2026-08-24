@@ -53,7 +53,7 @@ class ToolCategory(str, enum.Enum):
 
 class OllamaConfig(BaseSettings):
     host: str = "http://localhost:11434"
-    model: str = "llama3.1:latest"
+    model: str = "llama3:latest"
     embedding_model: str = "nomic-embed-text"
     timeout: int = 120
     max_tokens: int = 4096
