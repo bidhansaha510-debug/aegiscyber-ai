@@ -1,0 +1,36 @@
+name: nuclei
+description: Fast vulnerability scanner based on templates
+category:
+- VULNERABILITY_ASSESSMENT
+- WEB_RECON
+binary: nuclei
+execution_backend:
+- wsl2
+- docker
+capabilities:
+- vulnerability_scanning
+- misconfiguration_detection
+- cve_detection
+input_types:
+- url
+- domain
+- ip_address
+output_types:
+- vulnerabilities
+- misconfigurations
+- cves
+danger_level: MEDIUM_RISK
+parser: generic
+default_timeout: 600
+requires_root: false
+examples:
+- description: Scan with default templates
+  command: nuclei -u {target} -silent
+  expected_output: Vulnerability findings
+  risk_level: MEDIUM_RISK
+arguments:
+- name: target
+  flag: -u
+  description: Target URL
+  arg_type: url
+  required: true

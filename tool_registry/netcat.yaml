@@ -1,0 +1,23 @@
+name: netcat
+description: TCP/UDP networking utility
+category:
+- UTILITY
+- NETWORK_RECON
+binary: nc
+execution_backend:
+- wsl2
+- docker
+capabilities:
+- port_connectivity
+- banner_grabbing
+- data_transfer
+input_types:
+- ip_address
+- hostname
+output_types:
+- banners
+- connection_status
+danger_level: LOW_RISK
+parser: generic
+default_timeout: 30
+requires_root: false

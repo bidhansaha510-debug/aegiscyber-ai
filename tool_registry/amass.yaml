@@ -1,0 +1,39 @@
+name: amass
+description: In-depth attack surface mapping and asset discovery
+category:
+- SUBDOMAIN_DISCOVERY
+- OSINT
+- DOMAIN_OSINT
+binary: amass
+execution_backend:
+- wsl2
+- docker
+capabilities:
+- subdomain_enumeration
+- passive_dns
+- asset_discovery
+input_types:
+- domain
+output_types:
+- subdomains
+- ip_addresses
+- asn_info
+danger_level: LOW_RISK
+parser: generic
+default_timeout: 600
+requires_root: false
+examples:
+- description: Passive subdomain enumeration
+  command: amass enum -passive -d {target}
+  expected_output: Discovered subdomains
+  risk_level: SAFE
+arguments:
+- name: domain
+  flag: -d
+  description: Target domain
+  arg_type: domain
+  required: true
+- name: passive
+  flag: -passive
+  description: Passive mode only
+  arg_type: boolean

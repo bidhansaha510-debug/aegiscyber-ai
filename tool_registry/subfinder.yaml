@@ -1,0 +1,30 @@
+name: subfinder
+description: Fast passive subdomain enumeration tool
+category:
+- SUBDOMAIN_DISCOVERY
+- OSINT
+binary: subfinder
+execution_backend:
+- wsl2
+- docker
+capabilities:
+- passive_subdomain_discovery
+input_types:
+- domain
+output_types:
+- subdomains
+danger_level: SAFE
+parser: generic
+default_timeout: 120
+requires_root: false
+examples:
+- description: Passive subdomain discovery
+  command: subfinder -d {target} -silent
+  expected_output: List of subdomains
+  risk_level: SAFE
+arguments:
+- name: domain
+  flag: -d
+  description: Target domain
+  arg_type: domain
+  required: true

@@ -1,0 +1,35 @@
+name: john
+description: John the Ripper password cracker
+category:
+- PASSWORD_AUDITING
+- CTF
+binary: john
+execution_backend:
+- wsl2
+- docker
+capabilities:
+- password_cracking
+- hash_identification
+- wordlist_attack
+input_types:
+- hash_file
+output_types:
+- cracked_passwords
+danger_level: HIGH_RISK
+parser: generic
+default_timeout: 3600
+requires_root: false
+examples:
+- description: Wordlist attack
+  command: john --wordlist=/usr/share/wordlists/rockyou.txt {target}
+  expected_output: Cracked passwords
+  risk_level: HIGH_RISK
+arguments:
+- name: wordlist
+  flag: --wordlist
+  description: Wordlist path
+  arg_type: wordlist
+- name: format
+  flag: --format
+  description: Hash format
+  arg_type: string

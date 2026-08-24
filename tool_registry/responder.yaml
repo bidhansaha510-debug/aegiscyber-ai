@@ -1,0 +1,21 @@
+name: responder
+description: LLMNR/NBT-NS/MDNS poisoner
+category:
+- NETWORK_RECON
+binary: responder
+execution_backend:
+- wsl2
+- docker
+capabilities:
+- llmnr_poisoning
+- nbt_ns_poisoning
+- hash_capture
+input_types:
+- network_interface
+output_types:
+- hashes
+- credentials
+danger_level: HIGH_RISK
+parser: generic
+default_timeout: 300
+requires_root: true

@@ -1,0 +1,22 @@
+name: wget
+description: Network file downloader
+category:
+- UTILITY
+- WEB_RECON
+binary: wget
+execution_backend:
+- wsl2
+- docker
+- native
+capabilities:
+- file_download
+- website_mirroring
+input_types:
+- url
+output_types:
+- files
+- html
+danger_level: SAFE
+parser: generic
+default_timeout: 120
+requires_root: false

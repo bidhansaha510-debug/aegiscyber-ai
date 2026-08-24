@@ -1,0 +1,35 @@
+name: whois
+description: Domain/IP registration information lookup
+category:
+  - DOMAIN_OSINT
+  - OSINT
+binary: whois
+execution_backend:
+  - wsl2
+  - docker
+  - native
+documentation: https://linux.die.net/man/1/whois
+capabilities:
+  - domain_registration
+  - ip_registration
+  - registrar_lookup
+  - contact_lookup
+input_types:
+  - domain
+  - ip_address
+output_types:
+  - registration_info
+  - contact_info
+  - name_servers
+arguments: []
+danger_level: SAFE
+allowed_modes:
+  - passive
+examples:
+  - description: Domain whois lookup
+    command: "whois {target}"
+    expected_output: Domain registration information
+    risk_level: SAFE
+parser: whois
+default_timeout: 30
+requires_root: false

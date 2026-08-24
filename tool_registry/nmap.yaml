@@ -1,0 +1,130 @@
+name: nmap
+description: Network exploration tool and security/port scanner
+category:
+  - PORT_SCANNING
+  - SERVICE_ENUMERATION
+  - NETWORK_RECON
+binary: nmap
+execution_backend:
+  - wsl2
+  - docker
+  - native
+documentation: https://nmap.org/book/man.html
+capabilities:
+  - port_scanning
+  - service_detection
+  - os_detection
+  - script_scanning
+  - host_discovery
+  - traceroute
+input_types:
+  - ip_address
+  - ip_range
+  - domain
+  - hostname
+output_types:
+  - open_ports
+  - services
+  - os_info
+  - host_status
+arguments:
+  - name: port_spec
+    flag: "-p"
+    description: Port specification
+    arg_type: port_range
+    required: false
+  - name: service_version
+    flag: "-sV"
+    description: Probe open ports for service/version info
+    arg_type: boolean
+    required: false
+  - name: os_detection
+    flag: "-O"
+    description: Enable OS detection
+    arg_type: boolean
+    required: false
+  - name: script_scan
+    flag: "-sC"
+    description: Run default scripts
+    arg_type: boolean
+    required: false
+  - name: aggressive
+    flag: "-A"
+    description: Aggressive scan (OS, version, script, traceroute)
+    arg_type: boolean
+    required: false
+  - name: timing
+    flag: "-T"
+    description: Timing template (0-5)
+    arg_type: integer
+    required: false
+    default: 3
+  - name: syn_scan
+    flag: "-sS"
+    description: TCP SYN scan
+    arg_type: boolean
+    required: false
+  - name: udp_scan
+    flag: "-sU"
+    description: UDP scan
+    arg_type: boolean
+    required: false
+  - name: ping_scan
+    flag: "-sn"
+    description: Ping scan (no port scan)
+    arg_type: boolean
+    required: false
+  - name: output_xml
+    flag: "-oX"
+    description: Output results in XML
+    arg_type: file_path
+    required: false
+  - name: output_greppable
+    flag: "-oG"
+    description: Output results in greppable format
+    arg_type: file_path
+    required: false
+  - name: top_ports
+    flag: "--top-ports"
+    description: Scan most common ports
+    arg_type: integer
+    required: false
+required_arguments: []
+optional_arguments:
+  - port_spec
+  - service_version
+  - os_detection
+  - timing
+danger_level: MEDIUM_RISK
+allowed_modes:
+  - active
+examples:
+  - description: Quick service scan on common ports
+    command: "nmap -sV -p 80,443,22,21 {target}"
+    expected_output: Port state and service version info
+    risk_level: MEDIUM_RISK
+  - description: Full TCP port scan with service detection
+    command: "nmap -sV -p- {target}"
+    expected_output: All open TCP ports with services
+    risk_level: MEDIUM_RISK
+  - description: Ping sweep of network
+    command: "nmap -sn {target}/24"
+    expected_output: List of alive hosts
+    risk_level: LOW_RISK
+expected_output_patterns:
+  - name: open_port
+    pattern: '(\d+)/(tcp|udp)\s+open'
+    description: Matches open port lines
+  - name: service_info
+    pattern: '(\d+)/(tcp|udp)\s+open\s+(\S+)\s+(.*)'
+    description: Matches service information
+error_patterns:
+  - name: permission_denied
+    pattern: "requires root privileges"
+    description: Needs elevated permissions
+  - name: host_down
+    pattern: "Host seems down"
+    description: Target not responding
+parser: nmap
+default_timeout: 300
+requires_root: false

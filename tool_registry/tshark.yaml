@@ -1,0 +1,24 @@
+name: tshark
+description: Network protocol analyzer (CLI)
+category:
+- PACKET_ANALYSIS
+- NETWORK_RECON
+binary: tshark
+execution_backend:
+- wsl2
+- docker
+capabilities:
+- packet_capture
+- protocol_analysis
+- traffic_analysis
+input_types:
+- network_interface
+- pcap_file
+output_types:
+- packets
+- protocol_stats
+- conversations
+danger_level: MEDIUM_RISK
+parser: generic
+default_timeout: 60
+requires_root: true

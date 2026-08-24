@@ -1,0 +1,33 @@
+name: dnsx
+description: Fast and multi-purpose DNS toolkit
+category:
+- DNS
+- SUBDOMAIN_DISCOVERY
+binary: dnsx
+execution_backend:
+- wsl2
+- docker
+capabilities:
+- dns_resolution
+- dns_bruteforce
+- wildcard_detection
+input_types:
+- domain
+- subdomain_list
+output_types:
+- dns_records
+- ip_addresses
+danger_level: SAFE
+parser: dns
+default_timeout: 120
+requires_root: false
+examples:
+- description: Resolve subdomains
+  command: echo {target} | dnsx -silent
+  expected_output: Resolved domains
+  risk_level: SAFE
+arguments:
+- name: silent
+  flag: -silent
+  description: Silent mode
+  arg_type: boolean

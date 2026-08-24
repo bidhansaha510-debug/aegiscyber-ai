@@ -1,0 +1,38 @@
+name: ffuf
+description: Fast web fuzzer
+category:
+- WEB_RECON
+binary: ffuf
+execution_backend:
+- wsl2
+- docker
+capabilities:
+- web_fuzzing
+- directory_discovery
+- parameter_fuzzing
+input_types:
+- url
+output_types:
+- directories
+- parameters
+- endpoints
+danger_level: MEDIUM_RISK
+parser: generic
+default_timeout: 300
+requires_root: false
+examples:
+- description: Directory fuzzing
+  command: ffuf -u {target}/FUZZ -w /usr/share/wordlists/dirb/common.txt
+  expected_output: Discovered paths
+  risk_level: MEDIUM_RISK
+arguments:
+- name: url
+  flag: -u
+  description: Target URL with FUZZ keyword
+  arg_type: url
+  required: true
+- name: wordlist
+  flag: -w
+  description: Wordlist path
+  arg_type: wordlist
+  required: true

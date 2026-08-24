@@ -1,0 +1,35 @@
+name: nikto
+description: Web server vulnerability scanner
+category:
+- WEB_RECON
+- VULNERABILITY_ASSESSMENT
+binary: nikto
+execution_backend:
+- wsl2
+- docker
+capabilities:
+- web_vulnerability_scanning
+- server_misconfiguration
+- outdated_software
+input_types:
+- url
+- domain
+- ip_address
+output_types:
+- vulnerabilities
+- misconfigurations
+danger_level: MEDIUM_RISK
+parser: generic
+default_timeout: 600
+requires_root: false
+examples:
+- description: Basic web scan
+  command: nikto -h {target}
+  expected_output: Vulnerability report
+  risk_level: MEDIUM_RISK
+arguments:
+- name: host
+  flag: -h
+  description: Target host
+  arg_type: string
+  required: true

@@ -1,0 +1,22 @@
+name: hydra
+description: Fast network login brute-forcer
+category:
+- PASSWORD_AUDITING
+binary: hydra
+execution_backend:
+- wsl2
+- docker
+capabilities:
+- network_bruteforce
+- login_testing
+- protocol_bruteforce
+input_types:
+- ip_address
+- hostname
+- url
+output_types:
+- credentials
+danger_level: HIGH_RISK
+parser: generic
+default_timeout: 600
+requires_root: false

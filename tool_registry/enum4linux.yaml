@@ -1,0 +1,35 @@
+name: enum4linux
+description: Tool for enumerating information from Windows/Samba systems
+category:
+- SERVICE_ENUMERATION
+- NETWORK_RECON
+binary: enum4linux
+execution_backend:
+- wsl2
+- docker
+capabilities:
+- smb_enumeration
+- user_enumeration
+- share_enumeration
+input_types:
+- ip_address
+- hostname
+output_types:
+- users
+- shares
+- groups
+- policies
+danger_level: MEDIUM_RISK
+parser: generic
+default_timeout: 120
+requires_root: false
+examples:
+- description: Full enumeration
+  command: enum4linux -a {target}
+  expected_output: SMB enumeration data
+  risk_level: MEDIUM_RISK
+arguments:
+- name: all
+  flag: -a
+  description: Do all simple enumeration
+  arg_type: boolean

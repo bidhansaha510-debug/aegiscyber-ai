@@ -1,0 +1,70 @@
+name: dig
+description: DNS lookup utility
+category:
+  - DNS
+  - NETWORK_RECON
+binary: dig
+execution_backend:
+  - wsl2
+  - docker
+  - native
+documentation: https://linux.die.net/man/1/dig
+capabilities:
+  - dns_lookup
+  - dns_zone_transfer
+  - reverse_dns
+  - dns_record_query
+input_types:
+  - domain
+  - ip_address
+output_types:
+  - dns_records
+  - ip_addresses
+arguments:
+  - name: record_type
+    flag: ""
+    description: DNS record type (A, AAAA, MX, NS, TXT, CNAME, SOA, ANY)
+    arg_type: enum
+    required: false
+    choices: ["A", "AAAA", "MX", "NS", "TXT", "CNAME", "SOA", "ANY", "PTR"]
+  - name: short_output
+    flag: "+short"
+    description: Display only the answer
+    arg_type: boolean
+    required: false
+  - name: trace
+    flag: "+trace"
+    description: Trace delegation path
+    arg_type: boolean
+    required: false
+  - name: server
+    flag: "@"
+    description: DNS server to query
+    arg_type: string
+    required: false
+  - name: axfr
+    flag: "AXFR"
+    description: Zone transfer request
+    arg_type: boolean
+    required: false
+    dangerous: true
+danger_level: SAFE
+allowed_modes:
+  - passive
+  - active
+examples:
+  - description: Query A records
+    command: "dig {target} A"
+    expected_output: IP address records
+    risk_level: SAFE
+  - description: Query all record types
+    command: "dig {target} ANY +noall +answer"
+    expected_output: All DNS records
+    risk_level: SAFE
+  - description: Query MX records
+    command: "dig {target} MX +short"
+    expected_output: Mail server records
+    risk_level: SAFE
+parser: dns
+default_timeout: 30
+requires_root: false

@@ -1,0 +1,25 @@
+name: metasploit
+description: Penetration testing framework
+category:
+- VULNERABILITY_ASSESSMENT
+- CTF
+binary: msfconsole
+execution_backend:
+- wsl2
+- docker
+capabilities:
+- exploit_framework
+- payload_generation
+- post_exploitation
+input_types:
+- ip_address
+- url
+- hostname
+output_types:
+- exploit_results
+- sessions
+- credentials
+danger_level: HIGH_RISK
+parser: generic
+default_timeout: 600
+requires_root: false

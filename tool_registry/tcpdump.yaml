@@ -1,0 +1,21 @@
+name: tcpdump
+description: Packet capture utility
+category:
+- PACKET_ANALYSIS
+- NETWORK_RECON
+binary: tcpdump
+execution_backend:
+- wsl2
+- docker
+capabilities:
+- packet_capture
+- traffic_monitoring
+input_types:
+- network_interface
+output_types:
+- packets
+- pcap
+danger_level: MEDIUM_RISK
+parser: generic
+default_timeout: 60
+requires_root: true

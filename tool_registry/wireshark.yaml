@@ -1,0 +1,22 @@
+name: wireshark
+description: Network protocol analyzer (GUI)
+category:
+- PACKET_ANALYSIS
+binary: wireshark
+execution_backend:
+- native
+- wsl2
+capabilities:
+- packet_analysis
+- protocol_decode
+- traffic_visualization
+input_types:
+- pcap_file
+- network_interface
+output_types:
+- packet_details
+- protocol_stats
+danger_level: SAFE
+parser: generic
+default_timeout: 0
+requires_root: false

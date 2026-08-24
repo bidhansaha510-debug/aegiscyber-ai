@@ -1,0 +1,21 @@
+name: hashcat
+description: GPU-accelerated password recovery
+category:
+- PASSWORD_AUDITING
+- CTF
+binary: hashcat
+execution_backend:
+- wsl2
+- native
+capabilities:
+- gpu_password_cracking
+- hash_cracking
+- rule_attack
+input_types:
+- hash_file
+output_types:
+- cracked_passwords
+danger_level: HIGH_RISK
+parser: generic
+default_timeout: 3600
+requires_root: false

@@ -1,0 +1,36 @@
+name: sqlmap
+description: Automatic SQL injection detection and exploitation
+category:
+- WEB_RECON
+- VULNERABILITY_ASSESSMENT
+binary: sqlmap
+execution_backend:
+- wsl2
+- docker
+capabilities:
+- sql_injection_detection
+- database_enumeration
+input_types:
+- url
+output_types:
+- vulnerabilities
+- database_info
+danger_level: HIGH_RISK
+parser: generic
+default_timeout: 600
+requires_root: false
+examples:
+- description: Test URL for SQL injection
+  command: sqlmap -u {target} --batch --level=1
+  expected_output: SQL injection findings
+  risk_level: HIGH_RISK
+arguments:
+- name: url
+  flag: -u
+  description: Target URL with parameter
+  arg_type: url
+  required: true
+- name: batch
+  flag: --batch
+  description: Non-interactive mode
+  arg_type: boolean

@@ -1,0 +1,63 @@
+name: curl
+description: Command-line tool for transferring data with URLs
+category:
+  - WEB_RECON
+  - UTILITY
+binary: curl
+execution_backend:
+  - wsl2
+  - docker
+  - native
+capabilities:
+  - http_request
+  - header_inspection
+  - ssl_inspection
+  - download
+input_types:
+  - url
+  - domain
+output_types:
+  - http_response
+  - headers
+  - content
+arguments:
+  - name: include_headers
+    flag: "-I"
+    description: Fetch headers only
+    arg_type: boolean
+  - name: verbose
+    flag: "-v"
+    description: Verbose output including headers
+    arg_type: boolean
+  - name: follow_redirects
+    flag: "-L"
+    description: Follow redirects
+    arg_type: boolean
+  - name: user_agent
+    flag: "-A"
+    description: Set user agent string
+    arg_type: string
+  - name: output
+    flag: "-o"
+    description: Write output to file
+    arg_type: file_path
+  - name: max_time
+    flag: "--max-time"
+    description: Maximum time in seconds
+    arg_type: integer
+danger_level: SAFE
+allowed_modes:
+  - passive
+  - active
+examples:
+  - description: Fetch HTTP headers
+    command: "curl -I {target}"
+    expected_output: HTTP response headers
+    risk_level: SAFE
+  - description: Fetch page content with redirects
+    command: "curl -L -s {target}"
+    expected_output: Page HTML content
+    risk_level: SAFE
+parser: http
+default_timeout: 30
+requires_root: false

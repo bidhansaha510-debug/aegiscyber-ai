@@ -1,0 +1,39 @@
+name: httpx
+description: Fast HTTP probing tool
+category:
+- WEB_RECON
+- SERVICE_ENUMERATION
+binary: httpx
+execution_backend:
+- wsl2
+- docker
+capabilities:
+- http_probing
+- technology_detection
+- status_code_detection
+input_types:
+- domain
+- url
+- subdomain_list
+output_types:
+- http_status
+- technologies
+- titles
+danger_level: SAFE
+parser: http
+default_timeout: 120
+requires_root: false
+examples:
+- description: Probe HTTP services
+  command: echo {target} | httpx -silent -status-code -title -tech-detect
+  expected_output: HTTP service info
+  risk_level: SAFE
+arguments:
+- name: status_code
+  flag: -status-code
+  description: Show status codes
+  arg_type: boolean
+- name: title
+  flag: -title
+  description: Show page titles
+  arg_type: boolean

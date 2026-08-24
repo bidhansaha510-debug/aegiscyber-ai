@@ -1,0 +1,37 @@
+name: masscan
+description: High-speed port scanner
+category:
+- PORT_SCANNING
+- NETWORK_RECON
+binary: masscan
+execution_backend:
+- wsl2
+- docker
+capabilities:
+- port_scanning
+- high_speed_scanning
+input_types:
+- ip_address
+- ip_range
+output_types:
+- open_ports
+danger_level: MEDIUM_RISK
+allowed_modes:
+- active
+parser: generic
+default_timeout: 300
+requires_root: true
+examples:
+- description: Scan top ports
+  command: masscan -p1-1000 {target} --rate=1000
+  expected_output: Open ports
+  risk_level: MEDIUM_RISK
+arguments:
+- name: ports
+  flag: -p
+  description: Port specification
+  arg_type: port_range
+- name: rate
+  flag: --rate
+  description: Packets per second
+  arg_type: integer

@@ -1,0 +1,39 @@
+name: gobuster
+description: Directory/file and DNS brute-forcing tool
+category:
+- WEB_RECON
+- SUBDOMAIN_DISCOVERY
+binary: gobuster
+execution_backend:
+- wsl2
+- docker
+capabilities:
+- directory_bruteforce
+- dns_bruteforce
+- vhost_discovery
+input_types:
+- url
+- domain
+output_types:
+- directories
+- subdomains
+- vhosts
+danger_level: MEDIUM_RISK
+parser: generic
+default_timeout: 300
+requires_root: false
+examples:
+- description: Directory brute-force
+  command: gobuster dir -u {target} -w /usr/share/wordlists/dirb/common.txt
+  expected_output: Discovered directories
+  risk_level: MEDIUM_RISK
+arguments:
+- name: url
+  flag: -u
+  description: Target URL
+  arg_type: url
+- name: wordlist
+  flag: -w
+  description: Wordlist path
+  arg_type: wordlist
+  required: true
