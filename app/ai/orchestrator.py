@@ -102,7 +102,7 @@ class Orchestrator:
             is_running=True,
         )
 
-        inv_memory = self._memory.get_investigation(investigation_id)
+        inv_memory = self._memory.get_or_create_investigation(investigation_id)
         self._memory.conversation.add_message("user", user_request)
 
         try:

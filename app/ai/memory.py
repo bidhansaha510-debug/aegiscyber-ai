@@ -146,8 +146,10 @@ class MemoryManager:
         self._investigations[investigation_id] = memory
         return memory
 
-    def get_investigation(self, investigation_id: str) -> InvestigationMemory | None:
-        return self._investigations.get(investigation_id)
+    def get_investigation(self, investigation_id: str) -> InvestigationMemory:
+        if investigation_id not in self._investigations:
+            self._investigations[investigation_id] = InvestigationMemory(investigation_id)
+        return self._investigations[investigation_id]
 
     def get_or_create_investigation(self, investigation_id: str) -> InvestigationMemory:
         if investigation_id not in self._investigations:
