@@ -66,12 +66,12 @@ class ReasoningPanel(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(4)
 
-        header = QLabel("AI Reasoning")
-        header.setStyleSheet(
+        self._header = QLabel("AI Reasoning")
+        self._header.setStyleSheet(
             f"font-size: 15px; font-weight: 700; color: {COLORS['accent_purple']}; "
             f"padding: 8px 4px; background: transparent;"
         )
-        layout.addWidget(header)
+        layout.addWidget(self._header)
 
         self._scroll_area = QScrollArea()
         self._scroll_area.setWidgetResizable(True)
@@ -98,6 +98,17 @@ class ReasoningPanel(QWidget):
         )
         self._steps_layout.insertWidget(0, self._idle_label)
 
+    def set_investigation_id(self, investigation_id: str) -> None:
+        if investigation_id and investigation_id != "running...":
+            self._header.setText(f"AI Reasoning ({investigation_id})")
+        elif investigation_id:
+            self._header.setText("AI Reasoning (Active)")
+        else:
+            self._header.setText("AI Reasoning")
+
+    def update_steps(self, reasoning_steps: list[dict]) -> None:
+        self.update_state(reasoning_steps)
+
     def update_state(self, reasoning_steps: list[dict]) -> None:
         self._idle_label.hide()
 
@@ -113,6 +124,9 @@ class ReasoningPanel(QWidget):
                 detail=step_data.get("detail", ""),
             )
             self._steps_layout.insertWidget(self._steps_layout.count() - 1, step_widget)
+
+    def clear_steps(self) -> None:
+        self.clear()
 
     def clear(self) -> None:
         while self._steps_layout.count() > 1:
