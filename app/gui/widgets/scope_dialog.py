@@ -1,5 +1,6 @@
 ﻿from __future__ import annotations
 
+from typing import Any
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QPushButton, QComboBox, QListWidget, QListWidgetItem, QWidget,
@@ -13,8 +14,12 @@ from app.security.authorization import ScopeType
 class ScopeDialog(QDialog):
     scope_updated = Signal(list)
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(self, auth_manager: Any = None, parent: QWidget | None = None) -> None:
+        if isinstance(auth_manager, QWidget) and parent is None:
+            parent = auth_manager
+            auth_manager = None
         super().__init__(parent)
+        self._auth_manager = auth_manager
         self.setWindowTitle("Configure Target Scope")
         self.setMinimumSize(500, 400)
         self.setStyleSheet(f"QDialog {{ background-color: {COLORS['bg_secondary']}; }}")
@@ -84,6 +89,12 @@ class ScopeDialog(QDialog):
 
         self._entries: list[dict] = []
 
+        if self._auth_manager and hasattr(self._auth_manager, "current_scope") and self._auth_manager.current_scope:
+            for entry in self._auth_manager.current_scope.entries:
+                st_val = entry.scope_type.value if hasattr(entry.scope_type, "value") else str(entry.scope_type)
+                self._entries.append({"type": st_val, "value": entry.value})
+                self._scope_list.addItem(f"[{st_val}] {entry.value}")
+
     def _add_entry(self) -> None:
         value = self._value_input.text().strip()
         if not value:
@@ -102,9 +113,20 @@ class ScopeDialog(QDialog):
             self._entries.pop(row)
 
     def _confirm(self) -> None:
-        if self._entries:
-            self.scope_updated.emit(self._entries)
-            self.accept()
+        if self._auth_manager and self._entries:
+            scope = self._auth_manager.current_scope
+            scope.entries.clear()
+            for e in self._entries:
+                st_val = e.get("type", "domain")
+                st = next((s for s in ScopeType if s.value == st_val), ScopeType.DOMAIN)
+                scope.add_entry(st, e.get("value", ""))
+            try:
+                scope.confirm()
+                scope.activate()
+            except Exception:
+                pass
+        self.scope_updated.emit(self._entries)
+        self.accept()
 
     def set_entries(self, entries: list[dict]) -> None:
         self._entries = list(entries)
