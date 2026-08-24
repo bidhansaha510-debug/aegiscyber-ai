@@ -58,18 +58,15 @@ class DashboardPage(QWidget):
         cards_layout = QHBoxLayout()
         cards_layout.setSpacing(16)
 
-        self._investigations_card = StatCard("Investigations", "0", "[●]", COLORS["accent_cyan"])
+        self._investigations_card = StatCard("Investigations", "0", "[*]", COLORS["accent_cyan"])
+        self._tools_card = StatCard("Tools Available", "0", "[#]", COLORS["accent_blue"])
+        self._executions_card = StatCard("Commands Executed", "0", "[>]", COLORS["accent_green"])
+        self._entities_card = StatCard("OSINT Entities", "0", "[@]", COLORS["accent_purple"])
+
         cards_layout.addWidget(self._investigations_card)
-
-        self._tools_card = StatCard("Tools Available", "0", "[🔧]", COLORS["accent_green"])
         cards_layout.addWidget(self._tools_card)
-
-        self._executions_card = StatCard("Executions", "0", "[⚡]", COLORS["accent_blue"])
         cards_layout.addWidget(self._executions_card)
-
-        self._entities_card = StatCard("OSINT Entities", "0", "[🌐]", COLORS["accent_purple"])
         cards_layout.addWidget(self._entities_card)
-
         layout.addLayout(cards_layout)
 
         mid_layout = QHBoxLayout()
@@ -83,11 +80,11 @@ class DashboardPage(QWidget):
         self._ollama_label.setStyleSheet(f"color: {COLORS['text_secondary']};")
         system_layout.addWidget(self._ollama_label)
 
-        self._wsl_label = QLabel("WSL2: Checking...")
+        self._wsl_label = QLabel("WSL2 Backend: Checking...")
         self._wsl_label.setStyleSheet(f"color: {COLORS['text_secondary']};")
         system_layout.addWidget(self._wsl_label)
 
-        self._docker_label = QLabel("Docker: Checking...")
+        self._docker_label = QLabel("Docker Backend: Checking...")
         self._docker_label.setStyleSheet(f"color: {COLORS['text_secondary']};")
         system_layout.addWidget(self._docker_label)
 
@@ -121,6 +118,21 @@ class DashboardPage(QWidget):
         self._tools_card.set_value(str(tools))
         self._executions_card.set_value(str(executions))
         self._entities_card.set_value(str(entities))
+
+    def update_tools_count(self, installed: int, total: int) -> None:
+        self._tools_card.set_value(f"{installed}/{total}")
+
+    def update_status(self, data: dict[str, Any]) -> None:
+        ollama_ok = data.get("ollama", False)
+        backends = data.get("backends", {})
+        gpu = data.get("gpu", False)
+        self.update_system_status(
+            ollama=ollama_ok,
+            wsl=backends.get("wsl2", False),
+            docker=backends.get("docker", False),
+            gpu=gpu,
+        )
+        self._tools_card.set_value(f"{data.get('installed_count', 0)}/{data.get('tools_count', 0)}")
 
     def update_system_status(
         self,

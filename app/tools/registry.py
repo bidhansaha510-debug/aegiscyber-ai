@@ -149,6 +149,9 @@ class ToolRegistry:
             result.extend(backends.values())
         return result
 
+    def get_installed_tools(self) -> list[InstalledTool]:
+        return self.get_all_installed()
+
     def get_categories(self) -> list[str]:
         categories = set()
         for tool in self._tools.values():
