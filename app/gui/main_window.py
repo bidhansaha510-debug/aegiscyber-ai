@@ -8,7 +8,7 @@ from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QTabWidget, QSplitter, QLabel, QMessageBox,
 )
-from PySide6.QtCore import Qt, QTimer, Signal, Slot, QThread
+from PySide6.QtCore import Qt, QTimer, Signal, Slot, QObject
 from PySide6.QtGui import QIcon
 
 from app.gui.theme import COLORS, get_main_stylesheet
@@ -28,40 +28,58 @@ from app.logging_config import get_logger
 logger = get_logger("gui.main_window")
 
 
-class AsyncWorker(QThread):
-    finished = Signal(object)
-    error = Signal(str)
+class AsyncBridge(QObject):
+    coro_completed = Signal(object, object)
+    coro_failed = Signal(object, str)
+    reasoning_updated = Signal(list)
 
-    def __init__(self, coro, parent=None):
+    def __init__(self, loop: asyncio.AbstractEventLoop | None, parent=None):
         super().__init__(parent)
-        self._coro = coro
-        self._loop = None
+        self._loop = loop
 
-    def run(self):
-        try:
-            self._loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(self._loop)
-            result = self._loop.run_until_complete(self._coro)
-            self.finished.emit(result)
-        except Exception as e:
-            self.error.emit(str(e))
-        finally:
-            if self._loop:
-                self._loop.close()
+    def set_loop(self, loop: asyncio.AbstractEventLoop) -> None:
+        self._loop = loop
+
+    def run(self, coro, on_success=None, on_error=None):
+        if not self._loop or not self._loop.is_running():
+            if on_error:
+                on_error("Async event loop is not running")
+            return None
+
+        def _done(future):
+            try:
+                result = future.result()
+                self.coro_completed.emit(on_success, result)
+            except Exception as e:
+                self.coro_failed.emit(on_error, str(e))
+
+        future = asyncio.run_coroutine_threadsafe(coro, self._loop)
+        future.add_done_callback(_done)
+        return future
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, orchestrator=None) -> None:
+    def __init__(self, orchestrator=None, loop: asyncio.AbstractEventLoop | None = None) -> None:
         super().__init__()
         self._orchestrator = orchestrator
-        self._workers: list[AsyncWorker] = []
+        self._loop = loop
+        self._bridge = AsyncBridge(self._loop, self)
+        self._bridge.coro_completed.connect(self._handle_coro_completed)
+        self._bridge.coro_failed.connect(self._handle_coro_failed)
+        self._bridge.reasoning_updated.connect(self._handle_reasoning_updated)
+
         self._setup_window()
         self._build_ui()
         self._connect_signals()
+
+        if self._orchestrator:
+            self._orchestrator.on_reasoning_update(self._on_reasoning_step)
+            self._load_tools_table()
+
         self._start_status_timer()
 
     def _setup_window(self) -> None:
-        self.setWindowTitle("AegisCyber AI — Cybersecurity Research Assistant")
+        self.setWindowTitle("AegisCyber AI - Cybersecurity Research Assistant")
         self.setMinimumSize(1400, 900)
         self.resize(1600, 1000)
         self.setStyleSheet(get_main_stylesheet())
@@ -88,22 +106,22 @@ class MainWindow(QMainWindow):
         self._tabs.setDocumentMode(True)
 
         self._dashboard = DashboardPage()
-        self._tabs.addTab(self._dashboard, "📊 Dashboard")
+        self._tabs.addTab(self._dashboard, "?? Dashboard")
 
         self._chat_panel = self._build_investigation_panel()
-        self._tabs.addTab(self._chat_panel, "🔍 Investigation")
+        self._tabs.addTab(self._chat_panel, "?? Investigation")
 
         self._terminal = TerminalPage()
-        self._tabs.addTab(self._terminal, "🖥 Terminal")
+        self._tabs.addTab(self._terminal, "?? Terminal")
 
         self._tools_page = ToolsPage()
-        self._tabs.addTab(self._tools_page, "🔧 Tools")
+        self._tabs.addTab(self._tools_page, "?? Tools")
 
         self._logs_page = LogsPage()
-        self._tabs.addTab(self._logs_page, "📋 Logs")
+        self._tabs.addTab(self._logs_page, "?? Logs")
 
         self._settings_page = SettingsPage()
-        self._tabs.addTab(self._settings_page, "⚙ Settings")
+        self._tabs.addTab(self._settings_page, "? Settings")
 
         left_layout.addWidget(self._tabs)
         content_splitter.addWidget(left_panel)
@@ -145,7 +163,7 @@ class MainWindow(QMainWindow):
         layout = QHBoxLayout(header)
         layout.setContentsMargins(20, 0, 20, 0)
 
-        logo_label = QLabel("⛨ AegisCyber AI")
+        logo_label = QLabel("? AegisCyber AI")
         logo_label.setStyleSheet(
             f"font-size: 20px; font-weight: 800; "
             f"color: {COLORS['accent_cyan']}; background: transparent;"
@@ -161,7 +179,7 @@ class MainWindow(QMainWindow):
 
         layout.addStretch()
 
-        scope_btn = self._create_header_button("🎯 Scope", "scopeButton")
+        scope_btn = self._create_header_button("?? Scope", "scopeButton")
         scope_btn.clicked.connect(self._open_scope_dialog)
         layout.addWidget(scope_btn)
 
@@ -196,33 +214,81 @@ class MainWindow(QMainWindow):
         self._terminal.command_submitted.connect(self._on_terminal_command)
         self._kill_switch.kill_switch_activated.connect(self._on_kill_switch)
         self._settings_page.settings_changed.connect(self._on_settings_changed)
+        self._tools_page._scan_btn.clicked.connect(self._on_scan_tools)
+
+    def _load_tools_table(self) -> None:
+        if not self._orchestrator:
+            return
+        tools_data = []
+        registry = self._orchestrator._tool_registry
+        for tool in registry.get_all_tools():
+            tools_data.append({
+                "name": tool.name,
+                "description": tool.description,
+                "categories": tool.category,
+                "backends": tool.execution_backend,
+                "risk_level": tool.danger_level,
+                "installed": registry.is_installed(tool.name),
+                "capabilities": tool.capabilities,
+            })
+        self._tools_page.load_tools(tools_data)
 
     def _start_status_timer(self) -> None:
         self._status_timer = QTimer(self)
         self._status_timer.timeout.connect(self._update_status)
         self._status_timer.start(10000)
-        QTimer.singleShot(500, self._initial_status_check)
+        QTimer.singleShot(200, self._initial_status_check)
 
     def _initial_status_check(self) -> None:
         self._update_status()
 
     def _update_status(self) -> None:
-        if self._orchestrator:
-            worker = AsyncWorker(self._check_status_async())
-            worker.finished.connect(self._on_status_checked)
-            worker.start()
-            self._workers.append(worker)
+        if self._orchestrator and self._loop:
+            self._bridge.run(self._check_status_async(), on_success=self._on_status_checked)
 
     async def _check_status_async(self) -> dict:
-        result = {"ollama": False, "model": ""}
+        result = {
+            "ollama": False,
+            "model": "",
+            "backends": {},
+            "installed_tools": 0,
+            "total_tools": 0,
+        }
         if self._orchestrator:
-            from app.ai.ollama_client import OllamaClient
             client = self._orchestrator._ollama
             result["ollama"] = await client.health_check()
             if result["ollama"]:
                 from app.config import get_config
                 result["model"] = get_config().ollama.model
+
+            for b in ["native", "wsl2", "docker"]:
+                result["backends"][b] = self._orchestrator._exec_manager.is_backend_available(b)
+
+            registry = self._orchestrator._tool_registry
+            result["total_tools"] = registry.get_tool_count()
+            result["installed_tools"] = sum(1 for t in registry.get_all_tools() if registry.is_installed(t.name))
         return result
+
+    @Slot(object, object)
+    def _handle_coro_completed(self, callback: Any, result: Any) -> None:
+        if callback:
+            callback(result)
+
+    @Slot(object, str)
+    def _handle_coro_failed(self, callback: Any, error_msg: str) -> None:
+        if callback:
+            callback(error_msg)
+
+    @Slot(list)
+    def _handle_reasoning_updated(self, steps: list) -> None:
+        self._reasoning_panel.update_state(steps)
+
+    def _on_reasoning_step(self, state: Any) -> None:
+        steps = [
+            {"step": s.step, "status": s.status, "detail": s.detail}
+            for s in state.reasoning_steps
+        ]
+        self._bridge.reasoning_updated.emit(steps)
 
     @Slot(object)
     def _on_status_checked(self, result: dict) -> None:
@@ -230,24 +296,41 @@ class MainWindow(QMainWindow):
             result.get("ollama", False),
             result.get("model", ""),
         )
+        self._status_bar.set_backend_status(result.get("backends", {}))
+        self._status_bar.set_tool_count(
+            result.get("installed_tools", 0),
+            result.get("total_tools", 0),
+        )
+        self._dashboard.update_system_status(
+            ollama=result.get("ollama", False),
+            wsl=result.get("backends", {}).get("wsl2", False),
+            docker=result.get("backends", {}).get("docker", False),
+            gpu=False,
+        )
+        self._dashboard.update_stats(
+            investigations=0,
+            tools=result.get("total_tools", 0),
+            executions=0,
+            entities=0,
+        )
 
     @Slot(str)
     def _on_chat_submit(self, message: str) -> None:
         self._chat_widget.add_message("user", message)
         self._chat_widget.set_processing(True)
 
-        if self._orchestrator:
-            worker = AsyncWorker(self._orchestrator.process_request(message))
-            worker.finished.connect(self._on_chat_response)
-            worker.error.connect(self._on_chat_error)
-            worker.start()
-            self._workers.append(worker)
+        if self._orchestrator and self._loop:
+            self._bridge.run(
+                self._orchestrator.process_request(message),
+                on_success=self._on_chat_response,
+                on_error=self._on_chat_error,
+            )
         else:
             self._chat_widget.add_message("assistant", "Orchestrator not initialized. Please check Ollama connection.")
             self._chat_widget.set_processing(False)
 
     @Slot(object)
-    def _on_chat_response(self, response: str) -> None:
+    def _on_chat_response(self, response: Any) -> None:
         self._chat_widget.add_message("assistant", str(response))
         self._chat_widget.set_processing(False)
 
@@ -268,7 +351,7 @@ class MainWindow(QMainWindow):
         self._terminal.set_running(True)
         self._terminal.append_output(f"Executing on {backend}...")
 
-        if self._orchestrator:
+        if self._orchestrator and self._loop:
             from app.execution.models import CommandPlan, ExecutionRequest
             parts = command.split()
             cmd_plan = CommandPlan(
@@ -300,28 +383,46 @@ class MainWindow(QMainWindow):
                     return
 
             exec_req = ExecutionRequest(task_id="terminal", command_plan=cmd_plan)
-            worker = AsyncWorker(self._orchestrator._exec_manager.execute(exec_req))
-            worker.finished.connect(self._on_terminal_result)
-            worker.error.connect(self._on_terminal_error)
-            worker.start()
-            self._workers.append(worker)
+            self._bridge.run(
+                self._orchestrator._exec_manager.execute(exec_req),
+                on_success=self._on_terminal_result,
+                on_error=self._on_terminal_error,
+            )
         else:
             self._terminal.append_error("Orchestrator not initialized")
             self._terminal.set_running(False)
 
     @Slot(object)
-    def _on_terminal_result(self, result) -> None:
-        if result.stdout:
+    def _on_terminal_result(self, result: Any) -> None:
+        if hasattr(result, "stdout") and result.stdout:
             self._terminal.append_output(result.stdout)
-        if result.stderr:
+        if hasattr(result, "stderr") and result.stderr:
             self._terminal.append_error(result.stderr)
-        self._terminal.append_output(f"\n[Exit Code: {result.exit_code}] [{result.duration_seconds:.1f}s]\n")
+        duration = getattr(result, "duration_seconds", 0.0)
+        exit_code = getattr(result, "exit_code", None)
+        self._terminal.append_output(f"\n[Exit Code: {exit_code}] [{duration:.1f}s]\n")
         self._terminal.set_running(False)
 
     @Slot(str)
     def _on_terminal_error(self, error: str) -> None:
         self._terminal.append_error(error)
         self._terminal.set_running(False)
+
+    def _on_scan_tools(self) -> None:
+        if not self._orchestrator or not self._loop:
+            return
+        self._tools_page._status_label.setText("Scanning backends for installed tools...")
+        from app.tools.discovery import ToolDiscovery
+        discovery = ToolDiscovery(self._orchestrator._exec_manager, self._orchestrator._tool_registry)
+        self._bridge.run(
+            discovery.scan_all_tools(),
+            on_success=self._on_scan_completed,
+            on_error=lambda err: self._tools_page._status_label.setText(f"Scan failed: {err}"),
+        )
+
+    def _on_scan_completed(self, results: Any) -> None:
+        self._load_tools_table()
+        self._update_status()
 
     def _on_kill_switch(self) -> None:
         if self._orchestrator:
@@ -365,19 +466,22 @@ class MainWindow(QMainWindow):
             self._logs_page.append_log(f"[SCOPE] Updated: {len(entries)} entries")
 
     def _on_settings_changed(self, settings: dict) -> None:
-        self._logs_page.append_log(f"[SETTINGS] Configuration updated")
+        self._logs_page.append_log("[SETTINGS] Configuration updated")
 
     def closeEvent(self, event) -> None:
-        for worker in self._workers:
-            if worker.isRunning():
-                worker.quit()
-                worker.wait(1000)
-        if self._orchestrator:
-            import asyncio
+        if self._orchestrator and self._loop and self._loop.is_running():
+            async def _cleanup():
+                try:
+                    await self._orchestrator._ollama.close()
+                except Exception:
+                    pass
+                try:
+                    await self._orchestrator._exec_manager._db.close()
+                except Exception:
+                    pass
+            future = asyncio.run_coroutine_threadsafe(_cleanup(), self._loop)
             try:
-                loop = asyncio.new_event_loop()
-                loop.run_until_complete(self._orchestrator._ollama.close())
-                loop.close()
+                future.result(timeout=2.0)
             except Exception:
                 pass
-        event.accept()
+        event.accept()

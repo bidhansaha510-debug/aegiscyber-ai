@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import sys
 import os
+import threading
 
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import Qt
@@ -16,10 +17,6 @@ from app.security.audit import AuditLogger
 from app.security.kill_switch import KillSwitch
 from app.security.secrets import SecretsManager
 from app.execution.manager import ExecutionManager
-from app.execution.sandbox import ExecutionSandbox
-from app.execution.subprocess_backend import SubprocessBackend
-from app.execution.wsl_backend import WSLBackend
-from app.execution.docker_backend import DockerBackend
 from app.tools.registry import ToolRegistry
 from app.tools.discovery import ToolDiscovery
 from app.tools.policy import PolicyEngine
@@ -30,6 +27,22 @@ from app.osint.graph import KnowledgeGraph
 from app.ai.ollama_client import OllamaClient
 from app.ai.orchestrator import Orchestrator
 from app.gui.main_window import MainWindow
+
+
+class AsyncLoopThread(threading.Thread):
+    def __init__(self) -> None:
+        super().__init__(daemon=True, name="AegisAsyncLoop")
+        self.loop = asyncio.new_event_loop()
+        self.ready_event = threading.Event()
+
+    def run(self) -> None:
+        asyncio.set_event_loop(self.loop)
+        self.ready_event.set()
+        self.loop.run_forever()
+
+    def stop(self) -> None:
+        if self.loop.is_running():
+            self.loop.call_soon_threadsafe(self.loop.stop)
 
 
 async def initialize_system() -> dict:
@@ -98,26 +111,33 @@ def main() -> None:
     setup_logging()
     logger = get_logger("main")
 
-    loop = asyncio.new_event_loop()
+    async_thread = AsyncLoopThread()
+    async_thread.start()
+    async_thread.ready_event.wait()
+
     try:
-        components = loop.run_until_complete(initialize_system())
+        future = asyncio.run_coroutine_threadsafe(initialize_system(), async_thread.loop)
+        components = future.result(timeout=30)
     except Exception as e:
         logger.error("Failed to initialize system: %s", e)
         print(f"Initialization error: {e}")
         print("Starting in degraded mode without backend services...")
         components = {"orchestrator": None}
-    finally:
-        loop.close()
 
     app = QApplication(sys.argv)
     app.setApplicationName("AegisCyber AI")
     app.setApplicationVersion("1.0.0")
     app.setOrganizationName("AegisCyber")
 
-    window = MainWindow(orchestrator=components.get("orchestrator"))
+    window = MainWindow(
+        orchestrator=components.get("orchestrator"),
+        loop=async_thread.loop,
+    )
     window.show()
 
-    sys.exit(app.exec())
+    exit_code = app.exec()
+    async_thread.stop()
+    sys.exit(exit_code)
 
 
 if __name__ == "__main__":

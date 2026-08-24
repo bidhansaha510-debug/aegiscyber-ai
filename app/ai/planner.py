@@ -102,18 +102,21 @@ class Planner:
             )
 
     def _extract_json(self, text: str) -> str:
+        import re
         if "```json" in text:
             start = text.index("```json") + 7
-            end = text.index("```", start)
-            return text[start:end].strip()
-        if "```" in text:
+            end = text.find("```", start)
+            raw = text[start:end].strip() if end != -1 else text[start:].strip()
+        elif "```" in text:
             start = text.index("```") + 3
-            end = text.index("```", start)
-            return text[start:end].strip()
-
-        brace_start = text.find("{")
-        brace_end = text.rfind("}")
-        if brace_start != -1 and brace_end != -1:
-            return text[brace_start:brace_end + 1]
-
-        return text
+            end = text.find("```", start)
+            raw = text[start:end].strip() if end != -1 else text[start:].strip()
+        else:
+            brace_start = text.find("{")
+            brace_end = text.rfind("}")
+            if brace_start != -1 and brace_end != -1 and brace_end > brace_start:
+                raw = text[brace_start:brace_end + 1]
+            else:
+                raw = text
+        raw = re.sub(r',\s*([\]}])', r'\1', raw)
+        return raw

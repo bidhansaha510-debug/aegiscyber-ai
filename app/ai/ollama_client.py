@@ -22,6 +22,17 @@ class OllamaClient:
     async def _get_session(self) -> aiohttp.ClientSession:
         if self._session is None or self._session.closed:
             self._session = aiohttp.ClientSession(timeout=self._timeout)
+        else:
+            try:
+                loop = asyncio.get_running_loop()
+                if self._session._loop is not None and (self._session._loop != loop or self._session._loop.is_closed()):
+                    try:
+                        await self._session.close()
+                    except Exception:
+                        pass
+                    self._session = aiohttp.ClientSession(timeout=self._timeout)
+            except Exception:
+                pass
         return self._session
 
     async def close(self) -> None:
