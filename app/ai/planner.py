@@ -40,6 +40,35 @@ class Planner:
     def __init__(self, ollama_client: OllamaClient) -> None:
         self._ollama = ollama_client
 
+    async def plan_task(
+        self,
+        user_request: str,
+        context_summary: str = "",
+        scope_constraints: str = "",
+        available_backends: str = "",
+        available_tools: str = "",
+    ) -> TaskPlan:
+        return await self.decompose(
+            user_request=user_request,
+            scope_info=scope_constraints or context_summary,
+            available_backends=available_backends,
+            available_tools=available_tools,
+        )
+
+    async def plan(
+        self,
+        user_request: str,
+        scope_info: str = "",
+        available_backends: str = "",
+        available_tools: str = "",
+    ) -> TaskPlan:
+        return await self.decompose(
+            user_request=user_request,
+            scope_info=scope_info,
+            available_backends=available_backends,
+            available_tools=available_tools,
+        )
+
     async def decompose(
         self,
         user_request: str,
@@ -60,47 +89,30 @@ class Planner:
             temperature=0.1,
         )
 
-        plan = self._parse_plan(response)
-        plan.raw_response = response
-        logger.info(
-            "Task decomposed: intent=%s, phases=%d",
-            plan.intent,
-            len(plan.phases),
-        )
-        return plan
-
-    def _parse_plan(self, response: str) -> TaskPlan:
         try:
             json_str = self._extract_json(response)
             data = json.loads(json_str)
 
-            phases = []
-            for i, phase_data in enumerate(data.get("phases", [])):
+            raw_phases = data.get("phases", [])
+            phases: list[TaskPhase] = []
+            for i, phase_data in enumerate(raw_phases, 1):
                 raw_depends = phase_data.get("depends_on", [])
-                if isinstance(raw_depends, (int, str)):
-                    raw_depends = [raw_depends]
-                elif not isinstance(raw_depends, list):
-                    raw_depends = []
-
                 cleaned_depends = []
                 for d in raw_depends:
                     if isinstance(d, int):
                         cleaned_depends.append(d)
                     elif isinstance(d, str):
-                        digits = re.findall(r'\d+', d)
-                        if digits:
-                            cleaned_depends.append(int(digits[0]))
-
-                raw_num = phase_data.get("phase_number", i + 1)
-                if isinstance(raw_num, str):
-                    digits = re.findall(r'\d+', raw_num)
-                    phase_num = int(digits[0]) if digits else i + 1
-                else:
-                    phase_num = int(raw_num) if raw_num else i + 1
+                        match = re.search(r'\d+', d)
+                        if match:
+                            cleaned_depends.append(int(match.group(0)))
+                        else:
+                            cleaned_depends.append(d)
+                    else:
+                        cleaned_depends.append(d)
 
                 phases.append(TaskPhase(
-                    phase_number=phase_num,
-                    name=str(phase_data.get("name", f"Phase {phase_num}")),
+                    phase_number=phase_data.get("phase_number", i),
+                    name=str(phase_data.get("name", f"Phase {i}")),
                     description=str(phase_data.get("description", "")),
                     category=str(phase_data.get("category", "NETWORK_RECON")),
                     required_capabilities=list(phase_data.get("required_capabilities", [])),
