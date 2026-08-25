@@ -168,7 +168,14 @@ class CyberTaskRouter:
                         args = ["-silent" if str(a) in ["-quiet", "--quiet", "-q"] else a for a in args]
 
                     elif tool_name == "dnsx":
-                        args = ["-domain", target, "-recon", "-silent"]
+                        cmd_plan = CommandPlan(
+                            executable="sh",
+                            arguments=["-c", f"echo {target} | dnsx -recon -silent"],
+                            target="",
+                            timeout=calc_timeout,
+                            explanation=f"Query DNS records for {target} via dnsx",
+                            backend="wsl2",
+                        )
 
                     elif tool_name == "dig":
                         cleaned_args = []
@@ -183,17 +190,18 @@ class CyberTaskRouter:
                             cleaned_args.insert(0, "@8.8.8.8")
                         args = cleaned_args
 
-                    installed_info = self._registry.get_installed_info(tool_name)
-                    chosen_backend = installed_info.backend if (installed_info and installed_info.is_available) else "wsl2"
+                    if not cmd_plan:
+                        installed_info = self._registry.get_installed_info(tool_name)
+                        chosen_backend = installed_info.backend if (installed_info and installed_info.is_available) else "wsl2"
 
-                    cmd_plan = CommandPlan(
-                        executable=cp.get("executable", tool_name),
-                        arguments=args,
-                        target=cp.get("target", target),
-                        timeout=calc_timeout,
-                        explanation=cp.get("explanation", ""),
-                        backend=chosen_backend,
-                    )
+                        cmd_plan = CommandPlan(
+                            executable=cp.get("executable", tool_name),
+                            arguments=args,
+                            target=cp.get("target", target),
+                            timeout=calc_timeout,
+                            explanation=cp.get("explanation", ""),
+                            backend=chosen_backend,
+                        )
                 elif tool_def:
                     cmd_plan = self._planner.create_command_plan(tool_def, target)
 

@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import re
 from typing import Any
@@ -13,11 +13,26 @@ class DNSParser(BaseParser):
     def parse(self, raw_output: str, tool_name: str = "", command: str = "") -> dict[str, Any]:
         if tool_name.lower() == "dig":
             return self._parse_dig(raw_output)
+        if tool_name.lower() == "dnsx":
+            return self._parse_dnsx(raw_output)
         if tool_name.lower() == "nslookup":
             return self._parse_nslookup(raw_output)
         if tool_name.lower() == "host":
             return self._parse_host(raw_output)
         return self._parse_generic_dns(raw_output)
+
+    def _parse_dnsx(self, output: str) -> dict[str, Any]:
+        result: dict[str, Any] = {"records": [], "format": "dnsx"}
+        for line in output.split("\n"):
+            line = line.strip()
+            match = re.match(r"(\S+)\s+\[(\w+)\]\s+\[(.*)\]", line)
+            if match:
+                result["records"].append({
+                    "name": match.group(1),
+                    "type": match.group(2),
+                    "value": match.group(3),
+                })
+        return result
 
     def _parse_dig(self, output: str) -> dict[str, Any]:
         result: dict[str, Any] = {"records": [], "query_info": {}, "format": "dig"}
