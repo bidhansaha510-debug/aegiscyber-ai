@@ -167,6 +167,9 @@ class CyberTaskRouter:
                     elif tool_name == "httpx":
                         args = ["-silent" if str(a) in ["-quiet", "--quiet", "-q"] else a for a in args]
 
+                    elif tool_name == "dnsx":
+                        args = ["-domain", target, "-recon", "-silent"]
+
                     elif tool_name == "dig":
                         cleaned_args = []
                         for a in args:

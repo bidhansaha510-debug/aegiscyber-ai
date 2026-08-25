@@ -1,33 +1,44 @@
-name: dnsx
+﻿name: dnsx
 description: Fast and multi-purpose DNS toolkit
 category:
-- DNS
-- SUBDOMAIN_DISCOVERY
+  - DNS
+  - SUBDOMAIN_DISCOVERY
 binary: dnsx
 execution_backend:
-- wsl2
-- docker
+  - wsl2
+  - docker
 capabilities:
-- dns_resolution
-- dns_bruteforce
-- wildcard_detection
+  - dns_resolution
+  - dns_bruteforce
+  - wildcard_detection
 input_types:
-- domain
-- subdomain_list
+  - domain
+  - subdomain_list
 output_types:
-- dns_records
-- ip_addresses
+  - dns_records
+  - ip_addresses
 danger_level: SAFE
 parser: dns
 default_timeout: 120
 requires_root: false
 examples:
-- description: Resolve subdomains
-  command: echo {target} | dnsx -silent
-  expected_output: Resolved domains
-  risk_level: SAFE
+  - description: Comprehensive DNS record recon
+    command: dnsx -d {target} -recon -silent
+    expected_output: Resolved DNS records
+    risk_level: SAFE
 arguments:
-- name: silent
-  flag: -silent
-  description: Silent mode
-  arg_type: boolean
+  - name: domain
+    flag: -d
+    description: Target domain
+    arg_type: domain
+    required: true
+  - name: recon
+    flag: -recon
+    description: Query multiple DNS record types
+    arg_type: boolean
+    required: false
+  - name: silent
+    flag: -silent
+    description: Silent mode
+    arg_type: boolean
+    required: false

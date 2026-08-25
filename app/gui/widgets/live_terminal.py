@@ -95,7 +95,7 @@ class LiveTerminalWidget(QWidget):
         
         prompt_html = (
             f"<br><span style='color: {COLORS['accent_blue']}; font-weight: bold;'>[aegis@{backend}]$ </span>"
-            f"<span style='color: {COLORS['text_bright']}; font-weight: bold;'>{command}</span>"
+            f"<span style='color: {COLORS['text_bright']}; font-weight: bold;'>{command}</span><br>"
         )
         self._output_box.append(prompt_html)
         self._scroll_to_bottom()
@@ -124,7 +124,7 @@ class LiveTerminalWidget(QWidget):
         fin_html = (
             f"<br><span style='color: {status_color}; font-weight: bold;'>"
             f"[{'+' if success else '-'}] Process {tool_name} finished in {duration:.1f}s with status: {status_text}"
-            f"</span>"
+            f"</span><br>"
         )
         self._output_box.append(fin_html)
         self._scroll_to_bottom()
