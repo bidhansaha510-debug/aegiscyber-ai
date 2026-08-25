@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import ipaddress
 import re
@@ -181,7 +181,7 @@ class PolicyEngine:
         if any(flag in args_string for flag in ["-sv", "-sc", "-a", "--script"]):
             warnings.append("Service/script scanning generates active network traffic")
 
-        if plan.timeout > 600:
+        if 0 < plan.timeout <= 600:
             warnings.append(f"Long timeout configured: {plan.timeout}s")
 
         return warnings
@@ -194,3 +194,4 @@ class PolicyEngine:
 
     def remove_blocked_executable(self, executable: str) -> None:
         self._custom_blocked.discard(executable.lower())
+

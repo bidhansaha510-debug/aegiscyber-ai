@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from typing import Any
 
@@ -124,7 +124,7 @@ class CommandPlanner:
         arguments: list[str],
         target: str,
         backend: str = "wsl2",
-        timeout: int = 120,
+        timeout: int = 0,
         explanation: str = "",
     ) -> CommandPlan:
         tool = self._registry.get_tool(executable)
@@ -141,3 +141,4 @@ class CommandPlanner:
             risk_level=risk_level,
             explanation=explanation,
         )
+

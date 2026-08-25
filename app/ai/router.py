@@ -138,17 +138,11 @@ class CyberTaskRouter:
                 if "command_plan" in tool_data and tool_data["command_plan"]:
                     cp = tool_data["command_plan"]
                     args = list(cp.get("arguments", []))
-                    calc_timeout = int(cp.get("timeout", tool_def.default_timeout if tool_def else 1800))
+                    calc_timeout = 0
 
                     if tool_name == "nmap":
-                        if any("-p-" in str(a) for a in args):
-                            calc_timeout = max(calc_timeout, 1800)
-                            if not any(str(a).startswith("-T") for a in args):
-                                args.insert(0, "-T4")
-                        else:
-                            if not any(str(a).startswith("-T") for a in args):
-                                args.insert(0, "-T4")
-                            calc_timeout = max(calc_timeout, 600)
+                        if not any(str(a).startswith("-T") for a in args):
+                            args.insert(0, "-T4")
 
                     elif tool_name == "subfinder":
                         clean_args = []
@@ -167,12 +161,23 @@ class CyberTaskRouter:
                     elif tool_name == "httpx":
                         args = ["-silent" if str(a) in ["-quiet", "--quiet", "-q"] else a for a in args]
 
+                    elif tool_name == "nikto":
+                        clean_args = []
+                        for a in args:
+                            a_str = str(a).strip()
+                            if a_str not in ["-nocheck", "-nointeractive", "-ask"]:
+                                clean_args.append(a)
+                        if "-host" not in clean_args and "-h" not in clean_args:
+                            clean_args = ["-host", target] + [x for x in clean_args if x != target]
+                        clean_args.extend(["-nocheck", "-nointeractive", "-ask", "no"])
+                        args = clean_args
+
                     elif tool_name == "dnsx":
                         cmd_plan = CommandPlan(
                             executable="sh",
                             arguments=["-c", f"echo {target} | dnsx -recon -silent"],
                             target="",
-                            timeout=calc_timeout,
+                            timeout=0,
                             explanation=f"Query DNS records for {target} via dnsx",
                             backend="wsl2",
                         )
@@ -198,12 +203,12 @@ class CyberTaskRouter:
                             executable=cp.get("executable", tool_name),
                             arguments=args,
                             target=cp.get("target", target),
-                            timeout=calc_timeout,
+                            timeout=0,
                             explanation=cp.get("explanation", ""),
                             backend=chosen_backend,
                         )
                 elif tool_def:
-                    cmd_plan = self._planner.create_command_plan(tool_def, target)
+                    cmd_plan = self._planner.create_command_plan(tool_def, target, timeout=0)
 
                 tool_score = next((s for s in scores if s.tool_name == tool_name), None)
 
@@ -232,7 +237,7 @@ class CyberTaskRouter:
                 if score.tool_name in installed_set:
                     tool_def = self._registry.get_tool(score.tool_name)
                     if tool_def:
-                        cmd_plan = self._planner.create_command_plan(tool_def, target)
+                        cmd_plan = self._planner.create_command_plan(tool_def, target, timeout=0)
                         result.selected_tools.append(ToolSelection(
                             tool_name=score.tool_name,
                             reason=f"Installed fallback tool ({score.tool_name})",
@@ -282,7 +287,7 @@ class CyberTaskRouter:
             if score.installation_status > 0 and score.total_score > 10 and self._registry.is_installed(score.tool_name):
                 tool_def = self._registry.get_tool(score.tool_name)
                 if tool_def:
-                    cmd_plan = self._planner.create_command_plan(tool_def, target)
+                    cmd_plan = self._planner.create_command_plan(tool_def, target, timeout=0)
                     result.selected_tools.append(ToolSelection(
                         tool_name=score.tool_name,
                         reason=f"Score: {score.total_score:.1f}",

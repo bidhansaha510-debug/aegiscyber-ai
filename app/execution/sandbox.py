@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import asyncio
 from typing import Any
@@ -13,7 +13,7 @@ class ExecutionSandbox:
     def __init__(
         self,
         max_output_size: int = 10 * 1024 * 1024,
-        default_timeout: int = 300,
+        default_timeout: int = 0,
         max_concurrent: int = 5,
     ) -> None:
         self._max_output_size = max_output_size
@@ -56,12 +56,6 @@ class ExecutionSandbox:
             for op in shell_operators:
                 if op in arg and plan.backend != "wsl2":
                     issues.append(f"Shell operator in argument: {op}")
-
-        if plan.timeout <= 0:
-            plan.timeout = self._default_timeout
-        if plan.timeout > 3600:
-            issues.append(f"Timeout exceeds maximum (3600s): {plan.timeout}")
-            plan.timeout = 3600
 
         return len(issues) == 0, issues
 

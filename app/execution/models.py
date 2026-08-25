@@ -25,7 +25,7 @@ class CommandPlan(BaseModel):
     arguments: list[str] = Field(default_factory=list)
     target: str = ""
     working_directory: str | None = None
-    timeout: int = 120
+    timeout: int = 0
     environment: dict[str, str] = Field(default_factory=dict)
     explanation: str = ""
     backend: str = "wsl2"
@@ -98,3 +98,4 @@ class PolicyDecision(BaseModel):
     reason: str = ""
     warnings: list[str] = Field(default_factory=list)
     mitigations: list[str] = Field(default_factory=list)
+

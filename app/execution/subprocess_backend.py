@@ -98,25 +98,9 @@ class SubprocessBackend:
 
             stdout_chunks: list[str] = []
             stderr_chunks: list[str] = []
-            timeout_limit = command_plan.timeout if command_plan.timeout and command_plan.timeout > 0 else 3600
 
             while True:
-                try:
-                    item = await asyncio.wait_for(queue.get(), timeout=timeout_limit)
-                except asyncio.TimeoutError:
-                    try:
-                        proc.terminate()
-                        await asyncio.sleep(0.5)
-                        proc.kill()
-                    except Exception:
-                        pass
-                    yield ExecutionUpdate(
-                        execution_id=execution_id,
-                        status=ExecutionStatus.TIMEOUT,
-                        stdout_chunk="".join(stdout_chunks),
-                        stderr_chunk=f"Process timed out after {timeout_limit}s",
-                    )
-                    return
+                item = await queue.get()
 
                 if item is None:
                     break
@@ -169,3 +153,4 @@ class SubprocessBackend:
 
     def get_process(self) -> asyncio.subprocess.Process | None:
         return None
+

@@ -67,7 +67,7 @@ When generating Nmap commands:
 - Always include timing template `-T4` for fast execution
 - For initial port scanning, target common service ports (e.g. `["-T4", "-sV", "-p", "80,443,22,21,25,53,3306,8080,8443"]` or `["-T4", "--top-ports", "100", "-sV"]`)
 - Avoid `-p-` unless the user explicitly requested a full 65535 port scan
-- Set timeout to 180s for standard scans, and 600s for full port scans
+- Set timeout to 0 (execute until completion without arbitrary timeout)
 
 Produce a JSON tool selection:
 {
@@ -79,7 +79,7 @@ Produce a JSON tool selection:
                 "executable": "binary_name",
                 "arguments": ["arg1", "arg2"],
                 "target": "target_value",
-                "timeout": 180,
+                "timeout": 0,
                 "explanation": "what this command does"
             },
             "expected_output_type": "xml|json|text|greppable",
@@ -195,3 +195,4 @@ Produce a validation result:
 
 Err on the side of caution. Block anything suspicious.
 Only output valid JSON."""
+
