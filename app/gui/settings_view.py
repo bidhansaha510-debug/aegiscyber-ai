@@ -1,13 +1,49 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QGroupBox, QLineEdit, QComboBox, QCheckBox,
+    QFrame, QLineEdit, QComboBox, QCheckBox,
     QPushButton, QSpinBox, QFormLayout,
 )
 from PySide6.QtCore import Qt, Signal
 
-from app.gui.theme import COLORS
+from app.gui.theme import COLORS, FONT_SANS, FONT_MONO
+
+
+def _section_card(title: str) -> tuple[QFrame, QFormLayout]:
+    """Create a raised card frame with a title and form layout."""
+    card = QFrame()
+    card.setStyleSheet(
+        f"QFrame {{ background-color: {COLORS['bg_surface_raised']}; "
+        f"border: 1px solid {COLORS['border_hairline']}; border-radius: 8px; }}"
+    )
+    layout = QVBoxLayout(card)
+    layout.setContentsMargins(16, 16, 16, 16)
+    layout.setSpacing(8)
+
+    heading = QLabel(title)
+    heading.setStyleSheet(
+        f"color: {COLORS['text_primary']}; font-family: {FONT_SANS}; "
+        f"font-size: 14px; font-weight: 600; background: transparent; "
+        f"border: none;"
+    )
+    layout.addWidget(heading)
+
+    form = QFormLayout()
+    form.setSpacing(8)
+    form.setContentsMargins(0, 8, 0, 0)
+    form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
+    layout.addLayout(form)
+
+    return card, form
+
+
+def _toggle(checked: bool = False) -> QCheckBox:
+    """Create a toggle switch (custom QSS via objectName)."""
+    cb = QCheckBox()
+    cb.setObjectName("toggleSwitch")
+    cb.setChecked(checked)
+    return cb
 
 
 class SettingsPage(QWidget):
@@ -16,84 +52,77 @@ class SettingsPage(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(16)
 
         title = QLabel("Settings")
         title.setStyleSheet(
-            f"font-size: 24px; font-weight: 700; color: {COLORS['text_bright']};"
+            f"font-size: 24px; font-weight: 700; color: {COLORS['text_primary']}; "
+            f"font-family: {FONT_SANS};"
         )
         layout.addWidget(title)
 
-        ollama_group = QGroupBox("Ollama Configuration")
-        ollama_layout = QFormLayout(ollama_group)
-        ollama_layout.setSpacing(8)
+        # ── Ollama Configuration ──
+        ollama_card, ollama_form = _section_card("Ollama Configuration")
 
         self._ollama_host = QLineEdit("http://localhost:11434")
-        ollama_layout.addRow("Host:", self._ollama_host)
+        ollama_form.addRow("Host:", self._ollama_host)
 
         self._ollama_model = QLineEdit("llama3:latest")
-        ollama_layout.addRow("Model:", self._ollama_model)
+        ollama_form.addRow("Model:", self._ollama_model)
 
         self._ollama_temp = QLineEdit("0.1")
-        ollama_layout.addRow("Temperature:", self._ollama_temp)
+        ollama_form.addRow("Temperature:", self._ollama_temp)
 
         self._ollama_tokens = QSpinBox()
         self._ollama_tokens.setRange(256, 32768)
         self._ollama_tokens.setValue(4096)
-        ollama_layout.addRow("Max Tokens:", self._ollama_tokens)
+        ollama_form.addRow("Max Tokens:", self._ollama_tokens)
 
-        layout.addWidget(ollama_group)
+        layout.addWidget(ollama_card)
 
-        security_group = QGroupBox("Security Policy")
-        security_layout = QFormLayout(security_group)
-        security_layout.setSpacing(8)
+        # ── Security Policy ──
+        security_card, security_form = _section_card("Security Policy")
 
-        self._auto_approve_safe = QCheckBox()
-        self._auto_approve_safe.setChecked(True)
-        security_layout.addRow("Auto-approve SAFE:", self._auto_approve_safe)
+        self._auto_approve_safe = _toggle(True)
+        security_form.addRow("Auto-approve SAFE:", self._auto_approve_safe)
 
-        self._auto_approve_low = QCheckBox()
-        self._auto_approve_low.setChecked(True)
-        security_layout.addRow("Auto-approve LOW_RISK:", self._auto_approve_low)
+        self._auto_approve_low = _toggle(True)
+        security_form.addRow("Auto-approve LOW_RISK:", self._auto_approve_low)
 
-        self._require_medium = QCheckBox()
-        self._require_medium.setChecked(True)
-        security_layout.addRow("Require approval MEDIUM:", self._require_medium)
+        self._require_medium = _toggle(True)
+        security_form.addRow("Require approval MEDIUM:", self._require_medium)
 
-        self._require_high = QCheckBox()
-        self._require_high.setChecked(True)
-        security_layout.addRow("Require approval HIGH:", self._require_high)
+        self._require_high = _toggle(True)
+        security_form.addRow("Require approval HIGH:", self._require_high)
 
-        self._block_high = QCheckBox()
-        self._block_high.setChecked(False)
-        security_layout.addRow("Block HIGH_RISK:", self._block_high)
+        self._block_high = _toggle(False)
+        security_form.addRow("Block HIGH_RISK:", self._block_high)
 
         self._max_concurrent = QSpinBox()
         self._max_concurrent.setRange(1, 20)
         self._max_concurrent.setValue(5)
-        security_layout.addRow("Max Concurrent:", self._max_concurrent)
+        security_form.addRow("Max Concurrent:", self._max_concurrent)
 
-        layout.addWidget(security_group)
+        layout.addWidget(security_card)
 
-        exec_group = QGroupBox("Execution Backends")
-        exec_layout = QFormLayout(exec_group)
+        # ── Execution Backends ──
+        exec_card, exec_form = _section_card("Execution Backends")
 
-        self._enable_wsl = QCheckBox()
-        self._enable_wsl.setChecked(True)
-        exec_layout.addRow("Enable WSL2:", self._enable_wsl)
+        self._enable_wsl = _toggle(True)
+        exec_form.addRow("Enable WSL2:", self._enable_wsl)
 
-        self._enable_docker = QCheckBox()
-        self._enable_docker.setChecked(True)
-        exec_layout.addRow("Enable Docker:", self._enable_docker)
+        self._enable_docker = _toggle(True)
+        exec_form.addRow("Enable Docker:", self._enable_docker)
 
         self._default_timeout = QSpinBox()
         self._default_timeout.setRange(10, 3600)
         self._default_timeout.setValue(120)
-        exec_layout.addRow("Default Timeout (s):", self._default_timeout)
+        exec_form.addRow("Default Timeout (s):", self._default_timeout)
 
-        layout.addWidget(exec_group)
+        layout.addWidget(exec_card)
 
+        # ── Save ──
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
 

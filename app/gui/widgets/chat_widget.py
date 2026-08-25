@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTextEdit, QLineEdit,
@@ -7,7 +7,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, Signal, QTimer
 from PySide6.QtGui import QFont, QTextCursor, QKeyEvent
 
-from app.gui.theme import COLORS
+from app.gui.theme import COLORS, FONT_SANS, FONT_MONO
 
 
 class ChatMessage(QFrame):
@@ -20,9 +20,11 @@ class ChatMessage(QFrame):
 
         is_user = role == "user"
 
+        # Header — user = text_primary, AI = accent (one accent, not two)
         header = QLabel("You" if is_user else "AegisCyber AI")
+        header_color = COLORS["text_primary"] if is_user else COLORS["accent"]
         header.setStyleSheet(
-            f"color: {COLORS['accent_blue'] if is_user else COLORS['accent_cyan']}; "
+            f"color: {header_color}; font-family: {FONT_SANS}; "
             f"font-weight: 700; font-size: 12px; background: transparent;"
         )
         layout.addWidget(header)
@@ -31,15 +33,16 @@ class ChatMessage(QFrame):
         body.setWordWrap(True)
         body.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         body.setStyleSheet(
-            f"color: {COLORS['text_primary']}; font-size: 13px; "
-            f"background: transparent; padding: 4px 0px;"
+            f"color: {COLORS['text_primary']}; font-family: {FONT_SANS}; "
+            f"font-size: 13px; background: transparent; padding: 4px 0px;"
         )
         layout.addWidget(body)
 
-        bg = COLORS['bg_tertiary'] if is_user else COLORS['bg_card']
+        # Uniform card style — no colored left-borders
+        bg = COLORS["bg_surface_raised"] if is_user else COLORS["bg_surface"]
         self.setStyleSheet(
             f"QFrame#chatMessage {{ background-color: {bg}; border-radius: 8px; "
-            f"border-left: 3px solid {COLORS['accent_blue'] if is_user else COLORS['accent_cyan']}; }}"
+            f"border: 1px solid {COLORS['border_hairline']}; }}"
         )
 
 
@@ -55,16 +58,18 @@ class ChatInputWidget(QWidget):
         self._input = QLineEdit()
         self._input.setPlaceholderText("Ask AegisCyber AI or enter a research prompt...")
         self._input.setStyleSheet(
-            f"QLineEdit {{ background-color: {COLORS['bg_input']}; color: {COLORS['text_primary']}; "
-            f"border: 1px solid {COLORS['border']}; border-radius: 8px; padding: 10px 14px; font-size: 13px; }}"
-            f"QLineEdit:focus {{ border-color: {COLORS['accent_cyan']}; }}"
+            f"QLineEdit {{ background-color: {COLORS['bg_void']}; "
+            f"color: {COLORS['text_primary']}; "
+            f"border: 1px solid {COLORS['border_hairline']}; border-radius: 8px; "
+            f"padding: 10px 16px; font-family: {FONT_SANS}; font-size: 13px; }}"
+            f"QLineEdit:focus {{ border-color: {COLORS['accent']}; }}"
         )
         self._input.returnPressed.connect(self._send)
         layout.addWidget(self._input, 1)
 
         self._send_btn = QPushButton("Send")
         self._send_btn.setObjectName("primaryButton")
-        self._send_btn.setMinimumHeight(38)
+        self._send_btn.setMinimumHeight(40)
         self._send_btn.setMinimumWidth(80)
         self._send_btn.clicked.connect(self._send)
         layout.addWidget(self._send_btn)
@@ -92,17 +97,20 @@ class ChatWidget(QWidget):
 
         header = QLabel("AI Investigation Chat")
         header.setStyleSheet(
-            f"font-size: 15px; font-weight: 700; color: {COLORS['accent_cyan']}; "
-            f"padding: 8px 4px; background: transparent;"
+            f"font-family: {FONT_SANS}; font-size: 14px; font-weight: 600; "
+            f"color: {COLORS['text_primary']}; padding: 8px 4px; "
+            f"background: transparent;"
         )
         layout.addWidget(header)
 
         self._scroll_area = QScrollArea()
         self._scroll_area.setWidgetResizable(True)
-        self._scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self._scroll_area.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
         self._scroll_area.setStyleSheet(
-            f"QScrollArea {{ border: 1px solid {COLORS['border']}; border-radius: 8px; "
-            f"background-color: {COLORS['bg_primary']}; }}"
+            f"QScrollArea {{ border: 1px solid {COLORS['border_hairline']}; "
+            f"border-radius: 8px; background-color: {COLORS['bg_void']}; }}"
         )
 
         self._messages_container = QWidget()

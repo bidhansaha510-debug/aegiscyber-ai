@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from pathlib import Path
 from typing import Any
@@ -180,3 +180,4 @@ class ToolRegistry:
                 inst.avg_execution_time = (
                     (inst.avg_execution_time * (total - 1) + execution_time) / total
                 )
+

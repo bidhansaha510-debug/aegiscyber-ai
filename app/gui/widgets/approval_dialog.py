@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel,
@@ -6,7 +6,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Signal
 
-from app.gui.theme import COLORS, RISK_COLORS
+from app.gui.theme import COLORS, RISK_COLORS, FONT_SANS, FONT_MONO
 
 
 class ApprovalDialog(QDialog):
@@ -25,16 +25,20 @@ class ApprovalDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("Command Approval Required")
         self.setMinimumSize(550, 350)
-        self.setStyleSheet(f"QDialog {{ background-color: {COLORS['bg_secondary']}; }}")
+        self.setStyleSheet(
+            f"QDialog {{ background-color: {COLORS['bg_surface']}; }}"
+        )
 
         layout = QVBoxLayout(self)
-        layout.setSpacing(12)
+        layout.setSpacing(16)
+        layout.setContentsMargins(24, 24, 24, 24)
 
-        risk_color = RISK_COLORS.get(risk_level, COLORS["accent_yellow"])
+        risk_color = RISK_COLORS.get(risk_level, COLORS["state_review"])
 
-        title = QLabel(f"[!] Approval Required - {risk_level}")
+        title = QLabel(f"⚠  Approval Required — {risk_level}")
         title.setStyleSheet(
-            f"font-size: 18px; font-weight: 700; color: {risk_color}; padding: 8px 0;"
+            f"font-family: {FONT_SANS}; font-size: 18px; font-weight: 700; "
+            f"color: {risk_color}; padding: 8px 0;"
         )
         layout.addWidget(title)
 
@@ -47,7 +51,10 @@ class ApprovalDialog(QDialog):
         layout.addLayout(info_layout)
 
         cmd_label = QLabel("Command:")
-        cmd_label.setStyleSheet(f"color: {COLORS['text_secondary']}; font-weight: 600; font-size: 12px;")
+        cmd_label.setStyleSheet(
+            f"color: {COLORS['text_muted']}; font-family: {FONT_SANS}; "
+            f"font-weight: 600; font-size: 12px;"
+        )
         layout.addWidget(cmd_label)
 
         cmd_display = QTextEdit()
@@ -55,24 +62,30 @@ class ApprovalDialog(QDialog):
         cmd_display.setReadOnly(True)
         cmd_display.setMaximumHeight(80)
         cmd_display.setStyleSheet(
-            f"font-family: 'Cascadia Code', 'Consolas', monospace; "
-            f"background-color: {COLORS['bg_input']}; font-size: 12px;"
+            f"font-family: {FONT_MONO}; background-color: {COLORS['bg_void']}; "
+            f"color: {COLORS['text_primary']}; font-size: 12px; "
+            f"border: 1px solid {COLORS['border_hairline']}; border-radius: 8px; "
+            f"padding: 8px;"
         )
         layout.addWidget(cmd_display)
 
         if explanation:
             exp_label = QLabel(f"Explanation: {explanation}")
             exp_label.setWordWrap(True)
-            exp_label.setStyleSheet(f"color: {COLORS['text_secondary']}; font-size: 12px; padding: 4px 0;")
+            exp_label.setStyleSheet(
+                f"color: {COLORS['text_muted']}; font-family: {FONT_SANS}; "
+                f"font-size: 12px; padding: 4px 0;"
+            )
             layout.addWidget(exp_label)
 
         if warnings:
             for warning in warnings:
-                warn_label = QLabel(f"[!] {warning}")
+                warn_label = QLabel(f"⚠ {warning}")
                 warn_label.setWordWrap(True)
                 warn_label.setStyleSheet(
-                    f"color: {COLORS['accent_yellow']}; font-size: 12px; "
-                    f"padding: 4px 8px; background-color: {COLORS['bg_card']}; "
+                    f"color: {COLORS['state_review']}; font-family: {FONT_SANS}; "
+                    f"font-size: 12px; padding: 8px; "
+                    f"background-color: {COLORS['bg_surface_raised']}; "
                     f"border-radius: 4px;"
                 )
                 layout.addWidget(warn_label)
@@ -83,6 +96,7 @@ class ApprovalDialog(QDialog):
         btn_layout.addStretch()
 
         deny_btn = QPushButton("Deny")
+        deny_btn.setObjectName("secondaryButton")
         deny_btn.setMinimumWidth(120)
         deny_btn.clicked.connect(self._deny)
         btn_layout.addWidget(deny_btn)
@@ -98,7 +112,9 @@ class ApprovalDialog(QDialog):
     def _info_label(self, key: str, value: str, color: str = "") -> QLabel:
         label = QLabel(f"{key} {value}")
         c = color or COLORS["text_primary"]
-        label.setStyleSheet(f"color: {c}; font-size: 13px; padding: 2px 0;")
+        label.setStyleSheet(
+            f"color: {c}; font-family: {FONT_SANS}; font-size: 13px; padding: 2px 0;"
+        )
         return label
 
     def _approve(self) -> None:

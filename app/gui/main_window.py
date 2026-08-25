@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import asyncio
 import sys
@@ -11,7 +11,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QTimer, Signal, Slot, QObject
 from PySide6.QtGui import QIcon
 
-from app.gui.theme import COLORS, get_main_stylesheet
+from app.gui.theme import COLORS, FONT_SANS, FONT_MONO, get_main_stylesheet
 from app.gui.widgets.chat_widget import ChatWidget
 from app.gui.widgets.reasoning_panel import ReasoningPanel
 from app.gui.widgets.live_terminal import LiveTerminalWidget
@@ -156,32 +156,55 @@ class MainWindow(QMainWindow):
 
     def _build_header(self) -> QWidget:
         header = QWidget()
-        header.setFixedHeight(56)
+        header.setFixedHeight(48)
         header.setStyleSheet(
-            f"background-color: {COLORS['bg_secondary']}; "
-            f"border-bottom: 1px solid {COLORS['border']};"
+            f"background-color: {COLORS['bg_surface']}; "
+            f"border-bottom: 1px solid {COLORS['border_hairline']};"
         )
         layout = QHBoxLayout(header)
         layout.setContentsMargins(16, 0, 16, 0)
-        layout.setSpacing(12)
+        layout.setSpacing(16)
 
+        # ── Wordmark (only decorative accent use) ──
         logo = QLabel("AEGISCYBER AI")
         logo.setStyleSheet(
-            f"font-size: 16px; font-weight: 800; color: {COLORS['accent_cyan']}; "
-            f"letter-spacing: 2px;"
+            f"font-family: {FONT_SANS}; font-size: 15px; font-weight: 800; "
+            f"color: {COLORS['accent']}; letter-spacing: 2px;"
         )
         layout.addWidget(logo)
 
-        tagline = QLabel("LOCAL SECURITY RESEARCH & RECON ASSISTANT")
+        tagline = QLabel("SECURITY RESEARCH ASSISTANT")
         tagline.setStyleSheet(
-            f"font-size: 10px; font-weight: 600; color: {COLORS['text_muted']}; "
-            f"letter-spacing: 1px;"
+            f"font-family: {FONT_SANS}; font-size: 10px; font-weight: 600; "
+            f"color: {COLORS['text_muted']}; letter-spacing: 1px;"
         )
         layout.addWidget(tagline)
 
         layout.addStretch()
 
+        # ── System Status Indicators (consolidated here) ──
+        self._hdr_ollama = self._make_status_dot("Ollama")
+        layout.addWidget(self._hdr_ollama)
+
+        self._hdr_wsl = self._make_status_dot("WSL2")
+        layout.addWidget(self._hdr_wsl)
+
+        self._hdr_docker = self._make_status_dot("Docker")
+        layout.addWidget(self._hdr_docker)
+
+        self._hdr_gpu = self._make_status_dot("GPU")
+        layout.addWidget(self._hdr_gpu)
+
+        # ── Separator ──
+        sep = QLabel("│")
+        sep.setStyleSheet(
+            f"color: {COLORS['border_hairline']}; font-size: 16px;"
+        )
+        layout.addWidget(sep)
+
+        # ── Action Buttons ──
         scope_btn = QPushButton("Target Scope")
+        scope_btn.setObjectName("secondaryButton")
         scope_btn.setToolTip("Configure authorized targets")
         scope_btn.clicked.connect(self._open_scope_dialog)
         layout.addWidget(scope_btn)
@@ -192,10 +215,31 @@ class MainWindow(QMainWindow):
 
         return header
 
+    def _make_status_dot(self, label_text: str) -> QLabel:
+        """Create a mono-type status indicator: ● Label"""
+        lbl = QLabel(f"● {label_text}")
+        lbl.setStyleSheet(
+            f"font-family: {FONT_MONO}; font-size: 11px; font-weight: 600; "
+            f"color: {COLORS['text_muted']}; background: transparent;"
+        )
+        return lbl
+
+    def _set_header_dot(self, label: QLabel, name: str, available: bool, detail: str = "") -> None:
+        """Update a header status dot to reflect availability."""
+        color = COLORS["state_clear"] if available else COLORS["text_muted"]
+        text = f"● {name}"
+        if detail:
+            text = f"● {name} {detail}"
+        label.setText(text)
+        label.setStyleSheet(
+            f"font-family: {FONT_MONO}; font-size: 11px; font-weight: 600; "
+            f"color: {color}; background: transparent;"
+        )
+
     def _build_investigation_panel(self) -> QWidget:
         panel = QWidget()
         layout = QVBoxLayout(panel)
-        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setContentsMargins(8, 8, 8, 8)
         layout.setSpacing(8)
 
         splitter = QSplitter(Qt.Orientation.Vertical)
@@ -290,16 +334,33 @@ class MainWindow(QMainWindow):
         )
 
     def _on_status_result(self, data: dict[str, Any]) -> None:
-        self._status_bar.set_ollama_status(data["ollama"], data.get("model", "llama3:latest"))
-        self._status_bar.set_backend_status(data["backends"])
-        self._status_bar.set_tool_count(data["installed_count"], data["tools_count"])
+        # ── Update header status dots ──
+        ollama_ok = data.get("ollama", False)
+        model = data.get("model", "llama3:latest")
+        self._set_header_dot(self._hdr_ollama, "Ollama", ollama_ok, f"({model})" if ollama_ok else "")
+
+        backends = data.get("backends", {})
+        self._set_header_dot(self._hdr_wsl, "WSL2", backends.get("wsl2", False))
+        self._set_header_dot(self._hdr_docker, "Docker", backends.get("docker", False))
 
         gpu_info = data.get("gpu", {})
+        if isinstance(gpu_info, dict) and gpu_info.get("available", False):
+            temp = gpu_info.get("temperature_c", 0)
+            detail = f"{temp}°C" if temp > 0 else ""
+            self._set_header_dot(self._hdr_gpu, "GPU", True, detail)
+        else:
+            self._set_header_dot(self._hdr_gpu, "GPU", False)
+
+        # ── Update simplified status bar ──
+        self._status_bar.set_ollama_status(ollama_ok, model)
+        self._status_bar.set_backend_status(backends)
+        self._status_bar.set_tool_count(data.get("installed_count", 0), data.get("tools_count", 0))
         self._status_bar.set_gpu_status(gpu_info)
 
         ks = self._orchestrator._kill_switch.is_engaged if self._orchestrator else False
         self._status_bar.set_kill_switch(ks)
 
+        # ── Update dashboard stats ──
         self._dashboard.update_status(data)
 
     def _load_tools_table(self) -> None:

@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from typing import Any
 from PySide6.QtWidgets import (
@@ -7,7 +7,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, Signal
 
-from app.gui.theme import COLORS
+from app.gui.theme import COLORS, FONT_SANS
 from app.security.authorization import ScopeType
 
 
@@ -22,15 +22,18 @@ class ScopeDialog(QDialog):
         self._auth_manager = auth_manager
         self.setWindowTitle("Configure Target Scope")
         self.setMinimumSize(500, 400)
-        self.setStyleSheet(f"QDialog {{ background-color: {COLORS['bg_secondary']}; }}")
+        self.setStyleSheet(
+            f"QDialog {{ background-color: {COLORS['bg_surface']}; }}"
+        )
 
         layout = QVBoxLayout(self)
-        layout.setSpacing(12)
+        layout.setSpacing(16)
+        layout.setContentsMargins(24, 24, 24, 24)
 
         title = QLabel("Target Scope Configuration")
         title.setStyleSheet(
-            f"font-size: 18px; font-weight: 700; color: {COLORS['accent_cyan']}; "
-            f"padding: 8px 0;"
+            f"font-family: {FONT_SANS}; font-size: 18px; font-weight: 700; "
+            f"color: {COLORS['accent']}; padding: 8px 0;"
         )
         layout.addWidget(title)
 
@@ -39,7 +42,10 @@ class ScopeDialog(QDialog):
             "Only targets within this scope will be allowed."
         )
         desc.setWordWrap(True)
-        desc.setStyleSheet(f"color: {COLORS['text_secondary']}; font-size: 12px; padding-bottom: 8px;")
+        desc.setStyleSheet(
+            f"color: {COLORS['text_muted']}; font-family: {FONT_SANS}; "
+            f"font-size: 12px; padding-bottom: 8px;"
+        )
         layout.addWidget(desc)
 
         input_layout = QHBoxLayout()
@@ -57,7 +63,7 @@ class ScopeDialog(QDialog):
         self._value_input.returnPressed.connect(self._add_entry)
         input_layout.addWidget(self._value_input, 1)
 
-        add_btn = QPushButton("+ Add")
+        add_btn = QPushButton("Add")
         add_btn.setObjectName("primaryButton")
         add_btn.clicked.connect(self._add_entry)
         input_layout.addWidget(add_btn)
@@ -69,21 +75,23 @@ class ScopeDialog(QDialog):
         layout.addWidget(self._scope_list, 1)
 
         remove_btn = QPushButton("Remove Selected")
+        remove_btn.setObjectName("secondaryButton")
         remove_btn.clicked.connect(self._remove_entry)
         layout.addWidget(remove_btn)
 
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
 
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.setObjectName("secondaryButton")
+        cancel_btn.clicked.connect(self.reject)
+        btn_layout.addWidget(cancel_btn)
+
         confirm_btn = QPushButton("Confirm Scope")
         confirm_btn.setObjectName("primaryButton")
         confirm_btn.setMinimumWidth(150)
         confirm_btn.clicked.connect(self._confirm)
         btn_layout.addWidget(confirm_btn)
-
-        cancel_btn = QPushButton("Cancel")
-        cancel_btn.clicked.connect(self.reject)
-        btn_layout.addWidget(cancel_btn)
 
         layout.addLayout(btn_layout)
 
