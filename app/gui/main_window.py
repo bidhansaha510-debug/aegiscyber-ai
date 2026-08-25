@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import asyncio
 import sys
@@ -24,6 +24,7 @@ from app.gui.terminal_view import TerminalPage
 from app.gui.tools_view import ToolsPage
 from app.gui.logs_view import LogsPage
 from app.gui.settings_view import SettingsPage
+from app.gui.widgets.poc_viewer import POCViewerWidget
 from app.execution.hardware import get_gpu_info
 from app.execution.models import ExecutionUpdate
 from app.logging_config import get_logger
@@ -39,6 +40,7 @@ class AsyncBridge(QObject):
     live_output = Signal(str, bool)
     command_started = Signal(str, str, str)
     command_finished = Signal(str, bool, float)
+    poc_generated = Signal(list)
 
     def __init__(self, loop: asyncio.AbstractEventLoop | None, parent=None):
         super().__init__(parent)
@@ -78,6 +80,7 @@ class MainWindow(QMainWindow):
         self._bridge.live_output.connect(self._handle_live_output)
         self._bridge.command_started.connect(self._handle_command_started)
         self._bridge.command_finished.connect(self._handle_command_finished)
+        self._bridge.poc_generated.connect(self._handle_poc_generated)
 
         self._setup_window()
         self._build_ui()
@@ -89,6 +92,7 @@ class MainWindow(QMainWindow):
             self._orchestrator._exec_manager.on_update(self._on_exec_update)
             self._orchestrator.on_command_started(lambda t, b, c: self._bridge.command_started.emit(t, b, c))
             self._orchestrator.on_command_finished(lambda t, s, d: self._bridge.command_finished.emit(t, s, d))
+            self._orchestrator.on_poc_generated(lambda pocs: self._bridge.poc_generated.emit(pocs))
             self._load_tools_table()
             self._on_scan_tools()
 
@@ -135,6 +139,9 @@ class MainWindow(QMainWindow):
         self._logs_page = LogsPage()
         self._tabs.addTab(self._logs_page, "Logs & Audit")
 
+        self._poc_viewer = POCViewerWidget()
+        self._tabs.addTab(self._poc_viewer, "POC Reports")
+
         self._settings_page = SettingsPage()
         self._tabs.addTab(self._settings_page, "Settings")
 
@@ -165,7 +172,7 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(16, 0, 16, 0)
         layout.setSpacing(16)
 
-        # ── Wordmark (only decorative accent use) ──
+        # â”€â”€ Wordmark (only decorative accent use) â”€â”€
         logo = QLabel("AEGISCYBER AI")
         logo.setStyleSheet(
             f"font-family: {FONT_SANS}; font-size: 15px; font-weight: 800; "
@@ -182,7 +189,7 @@ class MainWindow(QMainWindow):
 
         layout.addStretch()
 
-        # ── System Status Indicators (consolidated here) ──
+        # â”€â”€ System Status Indicators (consolidated here) â”€â”€
         self._hdr_ollama = self._make_status_dot("Ollama")
         layout.addWidget(self._hdr_ollama)
 
@@ -195,14 +202,14 @@ class MainWindow(QMainWindow):
         self._hdr_gpu = self._make_status_dot("GPU")
         layout.addWidget(self._hdr_gpu)
 
-        # ── Separator ──
-        sep = QLabel("│")
+        # â”€â”€ Separator â”€â”€
+        sep = QLabel("â”‚")
         sep.setStyleSheet(
             f"color: {COLORS['border_hairline']}; font-size: 16px;"
         )
         layout.addWidget(sep)
 
-        # ── Action Buttons ──
+        # â”€â”€ Action Buttons â”€â”€
         scope_btn = QPushButton("Target Scope")
         scope_btn.setObjectName("secondaryButton")
         scope_btn.setToolTip("Configure authorized targets")
@@ -216,8 +223,8 @@ class MainWindow(QMainWindow):
         return header
 
     def _make_status_dot(self, label_text: str) -> QLabel:
-        """Create a mono-type status indicator: ● Label"""
-        lbl = QLabel(f"● {label_text}")
+        """Create a mono-type status indicator: â— Label"""
+        lbl = QLabel(f"â— {label_text}")
         lbl.setStyleSheet(
             f"font-family: {FONT_MONO}; font-size: 11px; font-weight: 600; "
             f"color: {COLORS['text_muted']}; background: transparent;"
@@ -227,9 +234,9 @@ class MainWindow(QMainWindow):
     def _set_header_dot(self, label: QLabel, name: str, available: bool, detail: str = "") -> None:
         """Update a header status dot to reflect availability."""
         color = COLORS["state_clear"] if available else COLORS["text_muted"]
-        text = f"● {name}"
+        text = f"â— {name}"
         if detail:
-            text = f"● {name} {detail}"
+            text = f"â— {name} {detail}"
         label.setText(text)
         label.setStyleSheet(
             f"font-family: {FONT_MONO}; font-size: 11px; font-weight: 600; "
@@ -280,6 +287,13 @@ class MainWindow(QMainWindow):
     def _handle_command_finished(self, tool: str, success: bool, duration: float) -> None:
         self._live_terminal.finish_command(tool, success, duration)
         self._update_status()
+
+    @Slot(list)
+    def _handle_poc_generated(self, pocs: list) -> None:
+        self._poc_viewer.add_pocs_batch(pocs)
+        if self._orchestrator:
+            md = self._orchestrator._poc_generator.export_pocs_markdown()
+            self._poc_viewer.set_markdown_content(md)
 
     def _start_status_timer(self) -> None:
         self._status_timer = QTimer(self)
@@ -334,7 +348,7 @@ class MainWindow(QMainWindow):
         )
 
     def _on_status_result(self, data: dict[str, Any]) -> None:
-        # ── Update header status dots ──
+        # â”€â”€ Update header status dots â”€â”€
         ollama_ok = data.get("ollama", False)
         model = data.get("model", "llama3:latest")
         self._set_header_dot(self._hdr_ollama, "Ollama", ollama_ok, f"({model})" if ollama_ok else "")
@@ -346,12 +360,12 @@ class MainWindow(QMainWindow):
         gpu_info = data.get("gpu", {})
         if isinstance(gpu_info, dict) and gpu_info.get("available", False):
             temp = gpu_info.get("temperature_c", 0)
-            detail = f"{temp}°C" if temp > 0 else ""
+            detail = f"{temp}Â°C" if temp > 0 else ""
             self._set_header_dot(self._hdr_gpu, "GPU", True, detail)
         else:
             self._set_header_dot(self._hdr_gpu, "GPU", False)
 
-        # ── Update simplified status bar ──
+        # â”€â”€ Update simplified status bar â”€â”€
         self._status_bar.set_ollama_status(ollama_ok, model)
         self._status_bar.set_backend_status(backends)
         self._status_bar.set_tool_count(data.get("installed_count", 0), data.get("tools_count", 0))
@@ -360,7 +374,7 @@ class MainWindow(QMainWindow):
         ks = self._orchestrator._kill_switch.is_engaged if self._orchestrator else False
         self._status_bar.set_kill_switch(ks)
 
-        # ── Update dashboard stats ──
+        # â”€â”€ Update dashboard stats â”€â”€
         self._dashboard.update_status(data)
 
     def _load_tools_table(self) -> None:
@@ -529,3 +543,4 @@ class MainWindow(QMainWindow):
             ks.engage("User activated kill switch")
             self._status_bar.set_kill_switch(True)
             self._chat.append_message("system", "EMERGENCY STOP ACTIVATED. All executions halted.")
+

@@ -25,6 +25,7 @@ from app.osint.models import OSINTSearchRequest, EntityType
 from app.security.authorization import AuthorizationManager
 from app.security.audit import AuditLogger
 from app.security.kill_switch import KillSwitch
+from app.ai.poc_generator import POCGenerator
 from app.logging_config import get_logger
 
 logger = get_logger("ai.orchestrator")
@@ -73,6 +74,8 @@ class Orchestrator:
         self._analyst = Analyst(ollama_client)
         self._verifier = Verifier(ollama_client)
         self._memory = MemoryManager()
+        self._poc_generator = POCGenerator(ollama_client)
+        self._poc_callbacks: list[Callable] = []
 
         self._state = OrchestratorState()
         self._reasoning_callbacks: list[Callable] = []
@@ -97,6 +100,16 @@ class Orchestrator:
 
     def on_command_finished(self, callback: Callable) -> None:
         self._command_finished_callbacks.append(callback)
+
+    def on_poc_generated(self, callback: Callable) -> None:
+        self._poc_callbacks.append(callback)
+
+    def _emit_poc_generated(self, pocs: list) -> None:
+        for cb in self._poc_callbacks:
+            try:
+                cb(pocs)
+            except Exception as e:
+                logger.error('POC callback error: %s', e)
 
     def _emit_command_started(self, tool: str, backend: str, cmd: str) -> None:
         for cb in self._command_started_callbacks:
@@ -312,6 +325,25 @@ class Orchestrator:
                             "parsed": parsed,
                             "analysis": analysis,
                         })
+
+                        self._update_reasoning("GENERATING POC", "active", f"Creating POC for {tool_selection.tool_name}")
+                        try:
+                            poc_entries = await self._poc_generator.generate_poc(
+                                tool_name=tool_selection.tool_name,
+                                command=tool_selection.command_plan.to_command_string(),
+                                raw_output=exec_result.stdout[:4000],
+                                analysis=analysis,
+                                target=plan.target,
+                                investigation_id=investigation_id,
+                            )
+                            if poc_entries:
+                                self._emit_poc_generated([p.model_dump() for p in poc_entries])
+                                self._update_reasoning("GENERATING POC", "complete", f"{len(poc_entries)} POC(s) generated")
+                            else:
+                                self._update_reasoning("GENERATING POC", "complete", "No actionable findings for POC")
+                        except Exception as poc_err:
+                            logger.warning("POC generation failed: %s", poc_err)
+                            self._update_reasoning("GENERATING POC", "failed", str(poc_err)[:200])
                     else:
                         error_msg = exec_result.error_message or exec_result.stderr
                         self._update_reasoning(f"TOOL: {tool_selection.tool_name}", "failed", error_msg[:200])
@@ -391,3 +423,4 @@ class Orchestrator:
         for entry in scope.entries:
             lines.append(f"{entry.scope_type.value}: {entry.value}")
         return "\n".join(lines)
+
