@@ -151,9 +151,18 @@ class CyberTaskRouter:
                             calc_timeout = max(calc_timeout, 600)
 
                     elif tool_name == "subfinder":
-                        args = ["-silent" if str(a) in ["-quiet", "--quiet", "-q"] else a for a in args]
-                        if "-d" not in args and target not in args:
-                            args = ["-d", target, "-silent"]
+                        clean_args = []
+                        for a in args:
+                            a_str = str(a).strip()
+                            if a_str in ["-quiet", "--quiet", "-q"]:
+                                clean_args.append("-silent")
+                            else:
+                                clean_args.append(a)
+                        if "-d" not in clean_args:
+                            clean_args = ["-d", target] + [x for x in clean_args if x != target]
+                        if "-silent" not in clean_args:
+                            clean_args.append("-silent")
+                        args = clean_args
 
                     elif tool_name == "httpx":
                         args = ["-silent" if str(a) in ["-quiet", "--quiet", "-q"] else a for a in args]
@@ -164,9 +173,11 @@ class CyberTaskRouter:
                             a_str = str(a).strip()
                             if a_str.startswith("@"):
                                 srv = a_str[1:].lower()
-                                if srv == target.lower() or srv.endswith(target.lower()):
+                                if srv == target.lower() or srv.endswith(target.lower()) or "127.0.0.1" in srv:
                                     continue
                             cleaned_args.append(a)
+                        if not any(str(a).startswith("@") for a in cleaned_args):
+                            cleaned_args.insert(0, "@8.8.8.8")
                         args = cleaned_args
 
                     installed_info = self._registry.get_installed_info(tool_name)

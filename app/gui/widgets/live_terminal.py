@@ -1,5 +1,6 @@
 ﻿from __future__ import annotations
 
+import re
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QTextEdit,
     QPushButton, QFrame,
@@ -8,6 +9,8 @@ from PySide6.QtCore import Qt, Signal, Slot, QTimer
 from PySide6.QtGui import QFont, QTextCursor
 
 from app.gui.theme import COLORS
+
+ANSI_REGEX = re.compile(r'\x1b\[[0-9;]*[a-zA-Z]|\x1b\([a-zA-Z]|\x1b\[\?[0-9;]*[a-zA-Z]')
 
 
 class LiveTerminalWidget(QWidget):
@@ -100,8 +103,11 @@ class LiveTerminalWidget(QWidget):
     def append_chunk(self, chunk: str, is_error: bool = False) -> None:
         if not chunk:
             return
+        clean_chunk = ANSI_REGEX.sub('', chunk)
+        if not clean_chunk:
+            return
         color = COLORS["accent_red"] if is_error else COLORS["accent_green"]
-        escaped = chunk.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\n", "<br>")
+        escaped = clean_chunk.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\n", "<br>")
         self._output_box.insertHtml(f"<span style='color: {color};'>{escaped}</span>")
         self._scroll_to_bottom()
 
