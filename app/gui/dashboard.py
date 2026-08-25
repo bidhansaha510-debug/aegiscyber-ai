@@ -59,7 +59,7 @@ class DashboardPage(QWidget):
         cards_layout.setSpacing(16)
 
         self._investigations_card = StatCard("Investigations", "0", "[*]", COLORS["accent_cyan"])
-        self._tools_card = StatCard("Tools Available", "0", "[#]", COLORS["accent_blue"])
+        self._tools_card = StatCard("Tools Available", "0/25", "[#]", COLORS["accent_blue"])
         self._executions_card = StatCard("Commands Executed", "0", "[>]", COLORS["accent_green"])
         self._entities_card = StatCard("OSINT Entities", "0", "[@]", COLORS["accent_purple"])
 
@@ -115,7 +115,6 @@ class DashboardPage(QWidget):
         entities: int = 0,
     ) -> None:
         self._investigations_card.set_value(str(investigations))
-        self._tools_card.set_value(str(tools))
         self._executions_card.set_value(str(executions))
         self._entities_card.set_value(str(entities))
 
@@ -132,7 +131,10 @@ class DashboardPage(QWidget):
             docker=backends.get("docker", False),
             gpu=gpu,
         )
+        self._investigations_card.set_value(str(data.get("investigations_count", 0)))
         self._tools_card.set_value(f"{data.get('installed_count', 0)}/{data.get('tools_count', 0)}")
+        self._executions_card.set_value(str(data.get("executions_count", 0)))
+        self._entities_card.set_value(str(data.get("entities_count", 0)))
 
     def update_system_status(
         self,

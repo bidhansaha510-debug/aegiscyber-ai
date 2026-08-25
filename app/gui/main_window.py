@@ -90,6 +90,7 @@ class MainWindow(QMainWindow):
             self._orchestrator.on_command_started(lambda t, b, c: self._bridge.command_started.emit(t, b, c))
             self._orchestrator.on_command_finished(lambda t, s, d: self._bridge.command_finished.emit(t, s, d))
             self._load_tools_table()
+            self._on_scan_tools()
 
         self._start_status_timer()
 
@@ -234,11 +235,12 @@ class MainWindow(QMainWindow):
     @Slot(str, bool, float)
     def _handle_command_finished(self, tool: str, success: bool, duration: float) -> None:
         self._live_terminal.finish_command(tool, success, duration)
+        self._update_status()
 
     def _start_status_timer(self) -> None:
         self._status_timer = QTimer(self)
         self._status_timer.timeout.connect(self._update_status)
-        self._status_timer.start(8000)
+        self._status_timer.start(5000)
         self._update_status()
 
     def _update_status(self) -> None:
@@ -263,6 +265,9 @@ class MainWindow(QMainWindow):
 
             tools_count = len(self._orchestrator._tool_registry.get_all_tools())
             installed_count = len(self._orchestrator._tool_registry.get_installed_tools())
+            investigations_count = len(self._orchestrator._memory._investigations) if self._orchestrator else 0
+            executions_count = len(self._orchestrator._exec_manager.get_all_executions()) if self._orchestrator else 0
+            entities_count = self._orchestrator._osint_engine._graph.get_entity_count() if self._orchestrator else 0
 
             gpu_info = get_gpu_info()
 
@@ -272,6 +277,9 @@ class MainWindow(QMainWindow):
                 "backends": backends,
                 "tools_count": tools_count,
                 "installed_count": installed_count,
+                "investigations_count": investigations_count,
+                "executions_count": executions_count,
+                "entities_count": entities_count,
                 "gpu": gpu_info,
             }
 
@@ -349,10 +357,12 @@ class MainWindow(QMainWindow):
         self._chat.set_loading(False)
         if self._orchestrator:
             self._reasoning_panel.set_investigation_id(self._orchestrator.state.investigation_id)
+        self._update_status()
 
     def _on_chat_error(self, error: str) -> None:
         self._chat.append_message("assistant", f"Error: {error}")
         self._chat.set_loading(False)
+        self._update_status()
 
     @Slot(object, object)
     def _handle_coro_completed(self, callback, result):
@@ -407,6 +417,7 @@ class MainWindow(QMainWindow):
             self._terminal.append_error(result.stderr)
         if result.error_message:
             self._terminal.append_error(result.error_message)
+        self._update_status()
 
     def _on_terminal_error(self, error: str) -> None:
         self._terminal.set_running(False)

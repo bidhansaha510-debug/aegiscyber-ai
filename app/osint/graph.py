@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from typing import Any
 
@@ -15,6 +15,12 @@ class KnowledgeGraph:
         self._graph = nx.DiGraph()
         self._entities: dict[str, OSINTEntity] = {}
         self._relationships: list[OSINTRelationship] = []
+
+    def get_entity_count(self) -> int:
+        return len(self._entities)
+
+    def get_all_entities(self) -> list[OSINTEntity]:
+        return list(self._entities.values())
 
     def add_entity(self, entity: OSINTEntity) -> str:
         existing = self.find_entity(entity.entity_type, entity.value)
@@ -63,56 +69,73 @@ class KnowledgeGraph:
     def get_entity(self, entity_id: str) -> OSINTEntity | None:
         return self._entities.get(entity_id)
 
-    def get_entities_by_type(self, entity_type: EntityType) -> list[OSINTEntity]:
-        return [e for e in self._entities.values() if e.entity_type == entity_type]
-
-    def get_related_entities(self, entity_id: str, depth: int = 1) -> list[OSINTEntity]:
-        if entity_id not in self._graph:
+    def get_entity_neighbors(self, entity_id: str, max_depth: int = 1) -> list[dict[str, Any]]:
+        if entity_id not in self._entities:
             return []
 
-        related_ids = set()
-        current_layer = {entity_id}
+        neighbors: list[dict[str, Any]] = []
+        visited = {entity_id}
+        queue = [(entity_id, 0)]
 
-        for _ in range(depth):
-            next_layer = set()
-            for node_id in current_layer:
-                next_layer.update(self._graph.successors(node_id))
-                next_layer.update(self._graph.predecessors(node_id))
-            next_layer -= related_ids
-            next_layer.discard(entity_id)
-            related_ids.update(next_layer)
-            current_layer = next_layer
+        while queue:
+            current_id, depth = queue.pop(0)
+            if depth >= max_depth:
+                continue
 
-        return [self._entities[eid] for eid in related_ids if eid in self._entities]
+            for successor in self._graph.successors(current_id):
+                if successor not in visited:
+                    visited.add(successor)
+                    queue.append((successor, depth + 1))
+                    edge_data = self._graph.get_edge_data(current_id, successor)
+                    target_entity = self._entities.get(successor)
+                    if target_entity:
+                        neighbors.append({
+                            "entity": target_entity.model_dump(),
+                            "relationship": edge_data.get("relationship_type", ""),
+                            "direction": "outgoing",
+                            "depth": depth + 1,
+                        })
 
-    def get_relationships_for(self, entity_id: str) -> list[OSINTRelationship]:
-        return [
-            r for r in self._relationships
-            if r.source_entity_id == entity_id or r.target_entity_id == entity_id
-        ]
+            for predecessor in self._graph.predecessors(current_id):
+                if predecessor not in visited:
+                    visited.add(predecessor)
+                    queue.append((predecessor, depth + 1))
+                    edge_data = self._graph.get_edge_data(predecessor, current_id)
+                    source_entity = self._entities.get(predecessor)
+                    if source_entity:
+                        neighbors.append({
+                            "entity": source_entity.model_dump(),
+                            "relationship": edge_data.get("relationship_type", ""),
+                            "direction": "incoming",
+                            "depth": depth + 1,
+                        })
 
-    def query_path(self, from_id: str, to_id: str) -> list[str]:
-        try:
-            path = nx.shortest_path(self._graph, from_id, to_id)
-            return path
-        except (nx.NetworkXNoPath, nx.NodeNotFound):
-            return []
+        return neighbors
 
-    def get_subgraph(self, entity_id: str, depth: int = 2) -> dict[str, Any]:
-        related = self.get_related_entities(entity_id, depth)
-        all_ids = {entity_id} | {e.id for e in related}
+    def get_subgraph(self, center_entity_id: str, depth: int = 2) -> dict[str, Any]:
+        if center_entity_id not in self._entities:
+            return {"nodes": [], "edges": []}
 
         nodes = []
-        for eid in all_ids:
-            entity = self._entities.get(eid)
-            if entity:
-                nodes.append({
-                    "id": entity.id,
-                    "type": entity.entity_type.value,
-                    "value": entity.value,
-                    "confidence": entity.confidence,
-                })
+        visited = {center_entity_id}
+        queue = [(center_entity_id, 0)]
 
+        while queue:
+            current_id, current_depth = queue.pop(0)
+            entity = self._entities.get(current_id)
+            if entity:
+                nodes.append(entity.model_dump())
+
+            if current_depth >= depth:
+                continue
+
+            all_neighbors = list(self._graph.successors(current_id)) + list(self._graph.predecessors(current_id))
+            for neighbor in all_neighbors:
+                if neighbor not in visited:
+                    visited.add(neighbor)
+                    queue.append((neighbor, current_depth + 1))
+
+        all_ids = {n["id"] for n in nodes}
         edges = []
         for rel in self._relationships:
             if rel.source_entity_id in all_ids and rel.target_entity_id in all_ids:
