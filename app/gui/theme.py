@@ -4,15 +4,15 @@ from PySide6.QtGui import QColor, QFont, QPalette
 from PySide6.QtWidgets import QApplication
 
 COLORS = {
-    
+
     "bg_void":            "#0B0E14",
     "bg_surface":         "#12161F",
     "bg_surface_raised":  "#1A1F2B",
 
-   
+
     "border_hairline":    "#232938",
 
-   
+
     "text_primary":       "#E4E7EE",
     "text_muted":         "#7C8494",
 
@@ -41,7 +41,7 @@ COLORS.update({
     "border_focus":   COLORS["accent"],
     "border_subtle":  COLORS["border_hairline"],
 
-    
+
     "text_secondary": COLORS["text_muted"],
     "text_bright":    COLORS["text_primary"],
 
@@ -74,7 +74,6 @@ RISK_COLORS = {
     "HIGH_RISK":   COLORS["state_caution"],
     "BLOCKED":     COLORS["state_blocked"],
 }
-
 
 
 FONT_SANS  = "'Inter', 'IBM Plex Sans', 'Segoe UI', sans-serif"

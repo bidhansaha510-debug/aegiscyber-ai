@@ -19,7 +19,6 @@ class KillSwitchButton(QWidget):
         self._button.setObjectName("dangerButton")
         self._button.setMinimumHeight(36)
         self._button.setMinimumWidth(160)
-        # No inline QSS — #dangerButton in theme.py handles everything
         self._button.clicked.connect(self._on_click)
         layout.addWidget(self._button)
 
@@ -33,7 +32,6 @@ class KillSwitchButton(QWidget):
         self._is_engaged = engaged
         if engaged:
             self._button.setText("⚠ STOP ACTIVE — Click to Disengage")
-            # Override to show active state (filled caution)
             self._button.setStyleSheet(
                 f"QPushButton#dangerButton {{ "
                 f"background-color: {COLORS['state_caution']}; "
@@ -47,5 +45,4 @@ class KillSwitchButton(QWidget):
             )
         else:
             self._button.setText("EMERGENCY STOP")
-            # Reset to default #dangerButton QSS from theme
             self._button.setStyleSheet("")

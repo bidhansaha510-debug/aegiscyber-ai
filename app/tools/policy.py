@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import ipaddress
 import re
@@ -194,4 +194,3 @@ class PolicyEngine:
 
     def remove_blocked_executable(self, executable: str) -> None:
         self._custom_blocked.discard(executable.lower())
-

@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import json
 import re
@@ -32,6 +32,7 @@ class TaskPlan(BaseModel):
     target: str = ""
     authorization_required: bool = True
     passive_only: bool = False
+    operation_mode: str = "standard"
     phases: list[TaskPhase] = Field(default_factory=list)
     raw_response: str = ""
 
@@ -39,6 +40,16 @@ class TaskPlan(BaseModel):
 class Planner:
     def __init__(self, ollama_client: OllamaClient) -> None:
         self._ollama = ollama_client
+        self._stealth_mode: bool = False
+
+    @property
+    def stealth_mode(self) -> bool:
+        return self._stealth_mode
+
+    @stealth_mode.setter
+    def stealth_mode(self, value: bool) -> None:
+        self._stealth_mode = value
+        logger.info("Planner stealth mode: %s", "ON" if value else "OFF")
 
     async def plan_task(
         self,
@@ -129,11 +140,16 @@ class Planner:
                     category="NETWORK_RECON",
                 )]
 
+            operation_mode = "stealth" if self._stealth_mode else "standard"
+            if self._stealth_mode:
+                phases = self._apply_stealth_transforms(phases)
+
             return TaskPlan(
                 intent=str(data.get("intent", "security_investigation")),
                 target=str(data.get("target", "")),
                 authorization_required=bool(data.get("authorization_required", True)),
                 passive_only=bool(data.get("passive_only", False)),
+                operation_mode=operation_mode,
                 phases=phases,
                 raw_response=response,
             )
@@ -141,6 +157,7 @@ class Planner:
             logger.warning("Failed to parse plan JSON: %s", e)
             return TaskPlan(
                 intent="security_investigation",
+                operation_mode="stealth" if self._stealth_mode else "standard",
                 phases=[TaskPhase(
                     phase_number=1,
                     name="Security Reconnaissance",
@@ -149,6 +166,53 @@ class Planner:
                 )],
                 raw_response=response,
             )
+
+    def _apply_stealth_transforms(self, phases: list[TaskPhase]) -> list[TaskPhase]:
+        """Transform a standard plan into a stealth-optimized plan.
+
+        - Reorders phases to prioritize passive techniques
+        - Lowers risk levels to avoid triggering noisy scans
+        - Adds 'OPSEC cooldown' phases between active operations
+        - Tags phases for LOLBin preference
+        """
+        stealth_phases: list[TaskPhase] = []
+        phase_num = 1
+
+        passive = [p for p in phases if p.risk_level in ("SAFE", "LOW_RISK")]
+        active = [p for p in phases if p.risk_level not in ("SAFE", "LOW_RISK")]
+
+        for p in passive:
+            p.phase_number = phase_num
+            p.description = f"[STEALTH] {p.description}"
+            stealth_phases.append(p)
+            phase_num += 1
+
+        for p in active:
+            cooldown = TaskPhase(
+                phase_number=phase_num,
+                name="OPSEC Cooldown",
+                description="Jitter delay between active operations to avoid traffic correlation",
+                category="STEALTH_SCANNING",
+                required_capabilities=["timing_evasion"],
+                risk_level="SAFE",
+                depends_on=[phase_num - 1] if phase_num > 1 else [],
+            )
+            stealth_phases.append(cooldown)
+            phase_num += 1
+
+            if p.risk_level == "HIGH_RISK":
+                p.risk_level = "MEDIUM_RISK"
+            p.phase_number = phase_num
+            p.description = f"[STEALTH/LOW-AND-SLOW] {p.description}"
+            p.required_capabilities.append("stealth_alternative")
+            stealth_phases.append(p)
+            phase_num += 1
+
+        logger.info(
+            "Stealth transforms applied: %d phases → %d phases (added %d cooldowns)",
+            len(phases), len(stealth_phases), len(stealth_phases) - len(phases),
+        )
+        return stealth_phases
 
     def _extract_json(self, text: str) -> str:
         if "```json" in text:

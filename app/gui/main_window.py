@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import asyncio
 import sys
@@ -93,6 +93,7 @@ class MainWindow(QMainWindow):
             self._orchestrator.on_command_started(lambda t, b, c: self._bridge.command_started.emit(t, b, c))
             self._orchestrator.on_command_finished(lambda t, s, d: self._bridge.command_finished.emit(t, s, d))
             self._orchestrator.on_poc_generated(lambda pocs: self._bridge.poc_generated.emit(pocs))
+            self._orchestrator.on_stealth_update(self._on_stealth_data)
             self._load_tools_table()
             self._on_scan_tools()
 
@@ -172,7 +173,6 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(16, 0, 16, 0)
         layout.setSpacing(16)
 
-        # â”€â”€ Wordmark (only decorative accent use) â”€â”€
         logo = QLabel("AEGISCYBER AI")
         logo.setStyleSheet(
             f"font-family: {FONT_SANS}; font-size: 15px; font-weight: 800; "
@@ -189,7 +189,6 @@ class MainWindow(QMainWindow):
 
         layout.addStretch()
 
-        # â”€â”€ System Status Indicators (consolidated here) â”€â”€
         self._hdr_ollama = self._make_status_dot("Ollama")
         layout.addWidget(self._hdr_ollama)
 
@@ -202,19 +201,35 @@ class MainWindow(QMainWindow):
         self._hdr_gpu = self._make_status_dot("GPU")
         layout.addWidget(self._hdr_gpu)
 
-        # â”€â”€ Separator â”€â”€
         sep = QLabel("â”‚")
         sep.setStyleSheet(
             f"color: {COLORS['border_hairline']}; font-size: 16px;"
         )
         layout.addWidget(sep)
 
-        # â”€â”€ Action Buttons â”€â”€
         scope_btn = QPushButton("Target Scope")
         scope_btn.setObjectName("secondaryButton")
         scope_btn.setToolTip("Configure authorized targets")
         scope_btn.clicked.connect(self._open_scope_dialog)
         layout.addWidget(scope_btn)
+
+        self._stealth_btn = QPushButton("◉ STEALTH")
+        self._stealth_btn.setObjectName("secondaryButton")
+        self._stealth_btn.setCheckable(True)
+        self._stealth_btn.setToolTip(
+            "Toggle stealth mode: OPSEC-aware operations, LOLBin preference, "
+            "jitter delays, evasion flags, MITRE ATT&CK tracking"
+        )
+        self._stealth_btn.setStyleSheet(
+            f"QPushButton {{ font-family: {FONT_MONO}; font-size: 11px; font-weight: 700; "
+            f"color: {COLORS['text_muted']}; background: transparent; "
+            f"border: 1px solid {COLORS['border_hairline']}; border-radius: 4px; "
+            f"padding: 4px 12px; }}"
+            f"QPushButton:checked {{ color: #00ff41; background: rgba(0,255,65,0.08); "
+            f"border-color: #00ff41; }}"
+        )
+        self._stealth_btn.clicked.connect(self._on_stealth_toggle)
+        layout.addWidget(self._stealth_btn)
 
         self._kill_switch = KillSwitchButton()
         self._kill_switch.clicked.connect(self._on_kill_switch)
@@ -250,7 +265,7 @@ class MainWindow(QMainWindow):
         layout.setSpacing(8)
 
         splitter = QSplitter(Qt.Orientation.Vertical)
-        
+
         self._chat = ChatWidget()
         splitter.addWidget(self._chat)
 
@@ -348,7 +363,6 @@ class MainWindow(QMainWindow):
         )
 
     def _on_status_result(self, data: dict[str, Any]) -> None:
-        # â”€â”€ Update header status dots â”€â”€
         ollama_ok = data.get("ollama", False)
         model = data.get("model", "llama3:latest")
         self._set_header_dot(self._hdr_ollama, "Ollama", ollama_ok, f"({model})" if ollama_ok else "")
@@ -365,7 +379,6 @@ class MainWindow(QMainWindow):
         else:
             self._set_header_dot(self._hdr_gpu, "GPU", False)
 
-        # â”€â”€ Update simplified status bar â”€â”€
         self._status_bar.set_ollama_status(ollama_ok, model)
         self._status_bar.set_backend_status(backends)
         self._status_bar.set_tool_count(data.get("installed_count", 0), data.get("tools_count", 0))
@@ -374,7 +387,6 @@ class MainWindow(QMainWindow):
         ks = self._orchestrator._kill_switch.is_engaged if self._orchestrator else False
         self._status_bar.set_kill_switch(ks)
 
-        # â”€â”€ Update dashboard stats â”€â”€
         self._dashboard.update_status(data)
 
     def _load_tools_table(self) -> None:
@@ -544,3 +556,29 @@ class MainWindow(QMainWindow):
             self._status_bar.set_kill_switch(True)
             self._chat.append_message("system", "EMERGENCY STOP ACTIVATED. All executions halted.")
 
+    def _on_stealth_toggle(self) -> None:
+        """Toggle stealth mode on/off."""
+        if not self._orchestrator:
+            return
+        engaged = self._stealth_btn.isChecked()
+        self._orchestrator.stealth_mode = engaged
+        if engaged:
+            self._chat.append_message(
+                "system",
+                "◉ **STEALTH MODE ENGAGED**\n\n"
+                "Operations are now OPSEC-aware:\n"
+                "• LOLBins preferred over signatured tools\n"
+                "• Jitter delays between tool executions\n"
+                "• Evasion flags auto-applied\n"
+                "• Commands exceeding OPSEC threshold will be blocked\n"
+                "• MITRE ATT&CK technique tracking active"
+            )
+        else:
+            self._chat.append_message(
+                "system",
+                "○ Stealth mode disengaged. Standard operation mode restored."
+            )
+
+    def _on_stealth_data(self, data: dict) -> None:
+        """Handle stealth/OPSEC data updates from orchestrator."""
+        pass

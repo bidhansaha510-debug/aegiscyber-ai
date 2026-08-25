@@ -19,7 +19,6 @@ class TerminalPage(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        # ── Console Chrome Title Bar ──
         title_bar = QFrame()
         title_bar.setFixedHeight(36)
         title_bar.setStyleSheet(
@@ -40,7 +39,6 @@ class TerminalPage(QWidget):
 
         layout.addWidget(title_bar)
 
-        # ── Output Area (0 radius — reads as console) ──
         self._output = QPlainTextEdit()
         self._output.setReadOnly(True)
         self._output.setFont(QFont("JetBrains Mono", 11))
@@ -55,7 +53,6 @@ class TerminalPage(QWidget):
         )
         layout.addWidget(self._output, 1)
 
-        # ── Input Bar ──
         input_bar = QFrame()
         input_bar.setStyleSheet(
             f"background-color: {COLORS['bg_surface']}; "

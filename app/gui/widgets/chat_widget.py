@@ -20,7 +20,6 @@ class ChatMessage(QFrame):
 
         is_user = role == "user"
 
-        # Header — user = text_primary, AI = accent (one accent, not two)
         header = QLabel("You" if is_user else "AegisCyber AI")
         header_color = COLORS["text_primary"] if is_user else COLORS["accent"]
         header.setStyleSheet(
@@ -38,7 +37,6 @@ class ChatMessage(QFrame):
         )
         layout.addWidget(body)
 
-        # Uniform card style — no colored left-borders
         bg = COLORS["bg_surface_raised"] if is_user else COLORS["bg_surface"]
         self.setStyleSheet(
             f"QFrame#chatMessage {{ background-color: {bg}; border-radius: 8px; "

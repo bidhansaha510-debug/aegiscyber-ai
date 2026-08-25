@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import asyncio
 import time
@@ -166,4 +166,3 @@ class WSLBackend:
                 status=ExecutionStatus.FAILED,
                 stderr_chunk=f"WSL execution error: {str(e)}",
             )
-

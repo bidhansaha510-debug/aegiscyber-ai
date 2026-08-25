@@ -49,6 +49,13 @@ class ToolCategory(str, enum.Enum):
     LINUX_ADMINISTRATION = "LINUX_ADMINISTRATION"
     CRYPTOGRAPHY = "CRYPTOGRAPHY"
     UTILITY = "UTILITY"
+    LOLBIN_RECON = "LOLBIN_RECON"
+    LOLBIN_EXECUTION = "LOLBIN_EXECUTION"
+    LOLBIN_EXFILTRATION = "LOLBIN_EXFILTRATION"
+    LOLBIN_PERSISTENCE = "LOLBIN_PERSISTENCE"
+    STEALTH_SCANNING = "STEALTH_SCANNING"
+    LATERAL_MOVEMENT = "LATERAL_MOVEMENT"
+    PRIVILEGE_ESCALATION = "PRIVILEGE_ESCALATION"
 
 
 class OllamaConfig(BaseSettings):
@@ -82,6 +89,22 @@ class SecurityConfig(BaseSettings):
     blocked_executables: list[str] = Field(default_factory=lambda: ["rm", "mkfs", "dd", "shutdown", "reboot", "init"])
     audit_log_path: str = "logs/audit.jsonl"
     max_audit_file_size_mb: int = 100
+
+
+class StealthConfig(BaseSettings):
+    """Configuration for APT stealth / OPSEC-aware operations."""
+    stealth_mode_default: bool = False
+    opsec_threshold: int = 70
+    traffic_profile: str = "careful"
+    default_jitter_min: float = 2.0
+    default_jitter_max: float = 15.0
+    max_requests_per_minute: int = 10
+    apply_evasion_flags: bool = True
+    evasion_level: str = "careful"
+    prefer_lolbins: bool = True
+    enable_mitre_tracking: bool = True
+    fragment_large_scans: bool = True
+    respect_business_hours: bool = True
 
 
 class ModelConfig(BaseSettings):
@@ -127,6 +150,7 @@ class AppConfig(BaseSettings):
     ollama: OllamaConfig = Field(default_factory=OllamaConfig)
     execution: ExecutionConfig = Field(default_factory=ExecutionConfig)
     security: SecurityConfig = Field(default_factory=SecurityConfig)
+    stealth: StealthConfig = Field(default_factory=StealthConfig)
     model: ModelConfig = Field(default_factory=ModelConfig)
     database: DatabaseConfig = Field(default_factory=DatabaseConfig)
     api: APIConfig = Field(default_factory=APIConfig)

@@ -17,7 +17,6 @@ class LogsPage(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        # ── Header area ──
         header_area = QWidget()
         header_layout = QVBoxLayout(header_area)
         header_layout.setContentsMargins(24, 24, 24, 16)
@@ -54,7 +53,6 @@ class LogsPage(QWidget):
         header_layout.addLayout(filter_layout)
         layout.addWidget(header_area)
 
-        # ── Log Output (console style — 0 radius) ──
         self._log_output = QPlainTextEdit()
         self._log_output.setReadOnly(True)
         self._log_output.setFont(QFont("JetBrains Mono", 10))
@@ -71,7 +69,6 @@ class LogsPage(QWidget):
         )
         layout.addWidget(self._log_output, 1)
 
-        # ── Footer ──
         footer = QWidget()
         footer_layout = QHBoxLayout(footer)
         footer_layout.setContentsMargins(24, 4, 24, 8)

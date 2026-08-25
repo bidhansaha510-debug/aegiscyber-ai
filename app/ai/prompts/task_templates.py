@@ -130,3 +130,45 @@ SECURITY POLICY:
 {security_policy}
 
 Validate this command and classify its risk. Respond with valid JSON only."""
+
+
+STEALTH_TASK_TEMPLATE = """Analyze the following request using APT stealth methodology.
+
+USER REQUEST: {user_request}
+
+CURRENT SCOPE:
+{scope_info}
+
+OPERATION MODE: STEALTH
+OPSEC THRESHOLD: {opsec_threshold}
+AVAILABLE LOLBINS: {available_lolbins}
+AVAILABLE TOOLS: {available_tools}
+TARGET EDR/SOC (if known): {target_edr}
+
+Create a stealth-optimized task plan that:
+1. Starts with passive OSINT only (no target contact)
+2. Uses LOLBins and native tools instead of signatured scanners
+3. Adds jitter delays between active phases
+4. Keeps all operations below the OPSEC threshold of {opsec_threshold}
+5. Tags each phase with MITRE ATT&CK technique IDs
+
+Respond with valid JSON only."""
+
+
+ATTACK_CHAIN_TEMPLATE = """Plan the next phase in the ATT&CK kill chain.
+
+CURRENT KILL CHAIN STATUS:
+{kill_chain_status}
+
+COMPLETED TECHNIQUES:
+{completed_techniques}
+
+TARGET: {target}
+KNOWN INTELLIGENCE:
+{known_intel}
+
+OPERATION MODE: {operation_mode}
+
+Based on what has been completed, plan the next logical phase(s) in the kill chain.
+Suggest specific techniques and tools for each phase.
+Respond with valid JSON only."""

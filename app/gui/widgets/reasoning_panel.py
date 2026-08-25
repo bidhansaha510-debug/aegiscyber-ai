@@ -9,7 +9,6 @@ from PySide6.QtGui import QFont
 from app.gui.theme import COLORS, FONT_SANS, FONT_MONO
 
 
-# ─── Node Icons ─────────────────────────────────────────────────────
 _ICONS = {
     "done":       "●",
     "complete":   "●",
@@ -78,12 +77,10 @@ class PipelineNodeWidget(QFrame):
         outer_layout.setContentsMargins(0, 0, 0, 0)
         outer_layout.setSpacing(0)
 
-        # ── Node Row: icon ━━ label          badge ──
         node_row = QHBoxLayout()
         node_row.setContentsMargins(0, 0, 0, 0)
         node_row.setSpacing(0)
 
-        # Icon
         self._icon_label = QLabel(f"{icon_char}━━")
         self._icon_label.setStyleSheet(
             f"color: {node_color}; font-family: {FONT_MONO}; font-size: 14px; "
@@ -92,7 +89,6 @@ class PipelineNodeWidget(QFrame):
         self._icon_label.setFixedWidth(40)
         node_row.addWidget(self._icon_label)
 
-        # Step label
         step_label = QLabel(step)
         step_label.setStyleSheet(
             f"color: {COLORS['text_primary']}; font-family: {FONT_SANS}; "
@@ -101,7 +97,6 @@ class PipelineNodeWidget(QFrame):
         )
         node_row.addWidget(step_label, 1)
 
-        # Status badge pill
         badge_bg = node_color
         badge = QLabel(_STATUS_LABELS.get(status, status))
         badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -115,7 +110,6 @@ class PipelineNodeWidget(QFrame):
 
         outer_layout.addLayout(node_row)
 
-        # ── Detail line (if any) ──
         if detail:
             detail_label = QLabel(detail)
             detail_label.setWordWrap(True)
@@ -126,7 +120,6 @@ class PipelineNodeWidget(QFrame):
             )
             outer_layout.addWidget(detail_label)
 
-        # ── Connecting line to next node ──
         if not is_last:
             line_label = QLabel("┃")
             line_label.setStyleSheet(
@@ -136,7 +129,6 @@ class PipelineNodeWidget(QFrame):
             line_label.setFixedHeight(20)
             outer_layout.addWidget(line_label)
 
-        # ── Pulse animation for active nodes ──
         if self._is_active:
             self._pulse_timer = QTimer(self)
             self._pulse_timer.timeout.connect(self._pulse_tick)
@@ -147,13 +139,10 @@ class PipelineNodeWidget(QFrame):
         self._pulse_state = not self._pulse_state
         opacity = 1.0 if self._pulse_state else 0.5
         node_color = _STATUS_COLORS.get(self._status, COLORS["accent"])
-        # Simulate opacity via alpha in color
         if opacity < 1.0:
-            # Parse hex color and apply alpha via lighter shade
             r = int(node_color[1:3], 16)
             g = int(node_color[3:5], 16)
             b = int(node_color[5:7], 16)
-            # Blend toward bg_void (#0B0E14) at 50%
             bg_r, bg_g, bg_b = 0x0B, 0x0E, 0x14
             r = int(r * opacity + bg_r * (1 - opacity))
             g = int(g * opacity + bg_g * (1 - opacity))
@@ -181,7 +170,6 @@ class ReasoningPanel(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        # ── Header ──
         self._header = QLabel("AI Reasoning")
         self._header.setStyleSheet(
             f"font-family: {FONT_SANS}; font-size: 14px; font-weight: 600; "
@@ -190,7 +178,6 @@ class ReasoningPanel(QWidget):
         )
         layout.addWidget(self._header)
 
-        # ── Scroll area ──
         self._scroll_area = QScrollArea()
         self._scroll_area.setWidgetResizable(True)
         self._scroll_area.setHorizontalScrollBarPolicy(
@@ -212,7 +199,6 @@ class ReasoningPanel(QWidget):
         self._scroll_area.setWidget(self._container)
         layout.addWidget(self._scroll_area, 1)
 
-        # ── Idle state ──
         self._idle_label = QLabel(
             "Awaiting task — submit a request\nto see the reasoning pipeline."
         )
@@ -237,7 +223,6 @@ class ReasoningPanel(QWidget):
     def update_state(self, reasoning_steps: list[dict]) -> None:
         self._idle_label.hide()
 
-        # Remove old nodes (keep the stretch at the end)
         while self._steps_layout.count() > 1:
             item = self._steps_layout.takeAt(0)
             if item.widget() and item.widget() != self._idle_label:
@@ -256,7 +241,6 @@ class ReasoningPanel(QWidget):
                 self._steps_layout.count() - 1, node
             )
 
-        # Auto-scroll to bottom
         QTimer.singleShot(50, lambda: self._scroll_area.verticalScrollBar().setValue(
             self._scroll_area.verticalScrollBar().maximum()
         ))

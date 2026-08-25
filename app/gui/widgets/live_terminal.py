@@ -20,7 +20,6 @@ class LiveTerminalWidget(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        # ── Console Chrome Header ──
         header = QFrame()
         header.setFixedHeight(32)
         header.setStyleSheet(
@@ -70,7 +69,6 @@ class LiveTerminalWidget(QWidget):
 
         layout.addWidget(header)
 
-        # ── Output Area (0 radius — console, not card) ──
         self._output_box = QTextEdit()
         self._output_box.setReadOnly(True)
         self._output_box.setStyleSheet(
@@ -99,7 +97,6 @@ class LiveTerminalWidget(QWidget):
         )
         self._backend_badge.setText(backend)
 
-        # Prompt line uses accent
         prompt_html = (
             f"<br><span style='color: {COLORS['accent']}; font-weight: bold;'>"
             f"[aegis@{backend}]$ </span>"
@@ -115,7 +112,6 @@ class LiveTerminalWidget(QWidget):
         clean_chunk = ANSI_REGEX.sub('', chunk)
         if not clean_chunk:
             return
-        # stdout = text_primary, errors = state_caution
         color = COLORS["state_caution"] if is_error else COLORS["text_primary"]
         escaped = (
             clean_chunk

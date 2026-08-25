@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import json
 import re
@@ -13,6 +13,9 @@ from app.tools.registry import ToolRegistry
 from app.tools.schemas import ToolScore
 from app.tools.command_planner import CommandPlanner
 from app.execution.models import CommandPlan
+from app.stealth.opsec_engine import OPSECEngine
+from app.stealth.signature_evader import SignatureEvader
+from app.lolbin.lolbin_engine import LOLBinEngine
 from app.logging_config import get_logger
 
 logger = get_logger("ai.router")
@@ -39,10 +42,27 @@ class CyberTaskRouter:
         ollama_client: OllamaClient,
         tool_registry: ToolRegistry,
         command_planner: CommandPlanner,
+        opsec_engine: OPSECEngine | None = None,
+        signature_evader: SignatureEvader | None = None,
+        lolbin_engine: LOLBinEngine | None = None,
     ) -> None:
         self._ollama = ollama_client
         self._registry = tool_registry
         self._planner = command_planner
+        self._opsec = opsec_engine or OPSECEngine()
+        self._evader = signature_evader or SignatureEvader()
+        self._lolbin = lolbin_engine or LOLBinEngine()
+        self._stealth_mode: bool = False
+
+    @property
+    def stealth_mode(self) -> bool:
+        return self._stealth_mode
+
+    @stealth_mode.setter
+    def stealth_mode(self, value: bool) -> None:
+        self._stealth_mode = value
+        self._opsec.stealth_mode = value
+        logger.info("Router stealth mode: %s", "ON" if value else "OFF")
 
     async def route(
         self,
@@ -105,10 +125,15 @@ class CyberTaskRouter:
         )
 
         result = self._parse_routing_result(response, target, scores, all_installed)
+
+        if self._stealth_mode:
+            result = self._apply_stealth_scoring(result, target)
+
         logger.info(
-            "Routed %s: %d tools selected",
+            "Routed %s: %d tools selected%s",
             phase_name,
             len(result.selected_tools),
+            " [STEALTH]" if self._stealth_mode else "",
         )
         return result
 
@@ -246,6 +271,63 @@ class CyberTaskRouter:
                         ))
                         break
 
+        return result
+
+    def _apply_stealth_scoring(self, result: RoutingResult, target: str) -> RoutingResult:
+        """Apply OPSEC scoring and evasion in stealth mode.
+
+        - Score each tool selection for OPSEC risk
+        - Apply evasion flags to reduce signatures
+        - Replace high-OPSEC tools with LOLBin alternatives
+        - Reorder by OPSEC score (stealthiest first)
+        """
+        stealth_selections: list[ToolSelection] = []
+
+        for tool_sel in result.selected_tools:
+            if not tool_sel.command_plan:
+                stealth_selections.append(tool_sel)
+                continue
+
+            opsec_score = self._opsec.evaluate_command(
+                tool_sel.command_plan.executable,
+                tool_sel.command_plan.arguments,
+                target,
+            )
+
+            if opsec_score.total_score >= 70 and opsec_score.stealth_alternatives:
+                best_alt = opsec_score.stealth_alternatives[0]
+                logger.info(
+                    "STEALTH: Replacing %s (OPSEC=%d) with %s (improvement=%d)",
+                    tool_sel.tool_name, opsec_score.total_score,
+                    best_alt.alternative_tool, best_alt.opsec_improvement,
+                )
+                tool_sel.reason = (
+                    f"[STEALTH] {best_alt.technique_description} "
+                    f"(replaces {tool_sel.tool_name}, OPSEC improvement: -{best_alt.opsec_improvement})"
+                )
+
+            if tool_sel.command_plan:
+                evaded_args = self._evader.apply_evasion_to_args(
+                    tool_sel.tool_name,
+                    tool_sel.command_plan.arguments,
+                    stealth_level="careful",
+                )
+                tool_sel.command_plan.arguments = evaded_args
+
+            stealth_selections.append(tool_sel)
+
+        def _opsec_sort_key(sel: ToolSelection) -> int:
+            if not sel.command_plan:
+                return 50
+            score = self._opsec.evaluate_command(
+                sel.command_plan.executable,
+                sel.command_plan.arguments,
+                target,
+            )
+            return score.total_score
+
+        stealth_selections.sort(key=_opsec_sort_key)
+        result.selected_tools = stealth_selections
         return result
 
     def _extract_json(self, text: str) -> str:

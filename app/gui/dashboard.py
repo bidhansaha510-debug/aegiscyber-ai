@@ -66,7 +66,6 @@ class DashboardPage(QWidget):
         )
         layout.addWidget(title)
 
-        # ── Stat Cards ──
         cards_layout = QHBoxLayout()
         cards_layout.setSpacing(16)
 
@@ -81,7 +80,6 @@ class DashboardPage(QWidget):
         cards_layout.addWidget(self._entities_card)
         layout.addLayout(cards_layout)
 
-        # ── Current Scope ──
         scope_card = QFrame()
         scope_card.setStyleSheet(
             f"QFrame {{ background-color: {COLORS['bg_surface_raised']}; "
@@ -111,7 +109,6 @@ class DashboardPage(QWidget):
 
         layout.addWidget(scope_card, 1)
 
-    # ── Public API (unchanged signatures) ──
 
     def update_stats(
         self,
@@ -128,7 +125,6 @@ class DashboardPage(QWidget):
         self._tools_card.set_value(f"{installed} / {total}")
 
     def update_status(self, data: dict[str, Any]) -> None:
-        # Stat values
         self._investigations_card.set_value(str(data.get("investigations_count", 0)))
 
         installed = data.get("installed_count", 0)
@@ -146,12 +142,9 @@ class DashboardPage(QWidget):
         docker: bool = False,
         gpu: dict | bool = False,
     ) -> None:
-        # System status is now displayed in the header bar.
-        # This method is kept for backward compatibility but is a no-op.
         pass
 
     def _set_status_label(self, label: QLabel, name: str, available: bool) -> None:
-        # No-op — system status moved to header.
         pass
 
     def update_scope(self, scope_text: str) -> None:

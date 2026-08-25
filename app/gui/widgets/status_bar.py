@@ -42,7 +42,6 @@ class StatusBarWidget(QWidget):
         )
         layout.addWidget(self._kill_status)
 
-    
 
     def set_ollama_status(self, connected: bool, model: str = "") -> None:
         pass

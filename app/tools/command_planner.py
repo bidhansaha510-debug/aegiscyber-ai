@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from typing import Any
 
@@ -141,4 +141,3 @@ class CommandPlanner:
             risk_level=risk_level,
             explanation=explanation,
         )
-

@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import enum
 import uuid
@@ -98,4 +98,3 @@ class PolicyDecision(BaseModel):
     reason: str = ""
     warnings: list[str] = Field(default_factory=list)
     mitigations: list[str] = Field(default_factory=list)
-

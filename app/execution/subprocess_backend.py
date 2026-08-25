@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import asyncio
 import time
@@ -153,4 +153,3 @@ class SubprocessBackend:
 
     def get_process(self) -> asyncio.subprocess.Process | None:
         return None
-

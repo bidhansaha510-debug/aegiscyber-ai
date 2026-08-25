@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import json
 import uuid
@@ -26,6 +26,12 @@ from app.security.authorization import AuthorizationManager
 from app.security.audit import AuditLogger
 from app.security.kill_switch import KillSwitch
 from app.ai.poc_generator import POCGenerator
+from app.stealth.opsec_engine import OPSECEngine
+from app.stealth.traffic_profiler import TrafficProfiler
+from app.stealth.signature_evader import SignatureEvader
+from app.lolbin.lolbin_engine import LOLBinEngine
+from app.mitre.attack_mapper import ATTACKMapper
+from app.mitre.attack_navigator import ATTACKNavigator
 from app.logging_config import get_logger
 
 logger = get_logger("ai.orchestrator")
@@ -70,12 +76,25 @@ class Orchestrator:
 
         self._command_planner = CommandPlanner(tool_registry)
         self._planner = Planner(ollama_client)
-        self._router = CyberTaskRouter(ollama_client, tool_registry, self._command_planner)
+        self._opsec_engine = OPSECEngine()
+        self._traffic_profiler = TrafficProfiler()
+        self._signature_evader = SignatureEvader()
+        self._lolbin_engine = LOLBinEngine()
+        self._attack_mapper = ATTACKMapper()
+        self._attack_navigator = ATTACKNavigator(self._attack_mapper)
+        self._router = CyberTaskRouter(
+            ollama_client, tool_registry, self._command_planner,
+            opsec_engine=self._opsec_engine,
+            signature_evader=self._signature_evader,
+            lolbin_engine=self._lolbin_engine,
+        )
         self._analyst = Analyst(ollama_client)
         self._verifier = Verifier(ollama_client)
         self._memory = MemoryManager()
         self._poc_generator = POCGenerator(ollama_client)
         self._poc_callbacks: list[Callable] = []
+        self._stealth_mode: bool = False
+        self._stealth_callbacks: list[Callable] = []
 
         self._state = OrchestratorState()
         self._reasoning_callbacks: list[Callable] = []
@@ -103,6 +122,60 @@ class Orchestrator:
 
     def on_poc_generated(self, callback: Callable) -> None:
         self._poc_callbacks.append(callback)
+
+    def on_stealth_update(self, callback: Callable) -> None:
+        """Register callback for stealth/OPSEC updates."""
+        self._stealth_callbacks.append(callback)
+
+    @property
+    def stealth_mode(self) -> bool:
+        return self._stealth_mode
+
+    @stealth_mode.setter
+    def stealth_mode(self, value: bool) -> None:
+        self._stealth_mode = value
+        self._opsec_engine.stealth_mode = value
+        self._planner.stealth_mode = value
+        self._router.stealth_mode = value
+        if value:
+            self._traffic_profiler.set_profile("careful")
+        else:
+            self._traffic_profiler.set_profile("aggressive")
+        logger.info("Orchestrator stealth mode: %s", "ENGAGED" if value else "disengaged")
+        self._emit_stealth_update()
+
+    @property
+    def attack_mapper(self) -> ATTACKMapper:
+        return self._attack_mapper
+
+    @property
+    def attack_navigator(self) -> ATTACKNavigator:
+        return self._attack_navigator
+
+    @property
+    def opsec_engine(self) -> OPSECEngine:
+        return self._opsec_engine
+
+    @property
+    def lolbin_engine(self) -> LOLBinEngine:
+        return self._lolbin_engine
+
+    @property
+    def traffic_profiler(self) -> TrafficProfiler:
+        return self._traffic_profiler
+
+    def _emit_stealth_update(self) -> None:
+        data = {
+            "stealth_mode": self._stealth_mode,
+            "opsec_summary": self._opsec_engine.get_opsec_summary(),
+            "traffic_stats": self._traffic_profiler.get_statistics(),
+            "attack_coverage": self._attack_mapper.get_coverage_summary(),
+        }
+        for cb in self._stealth_callbacks:
+            try:
+                cb(data)
+            except Exception as e:
+                logger.error("Stealth callback error: %s", e)
 
     def _emit_poc_generated(self, pocs: list) -> None:
         for cb in self._poc_callbacks:
@@ -226,6 +299,33 @@ class Orchestrator:
 
                     self._update_reasoning(f"TOOL: {tool_selection.tool_name}", "active", "Validating command")
 
+                    if self._stealth_mode and tool_selection.command_plan:
+                        opsec_score = self._opsec_engine.evaluate_command(
+                            tool_selection.command_plan.executable,
+                            tool_selection.command_plan.arguments,
+                            plan.target,
+                        )
+                        self._update_reasoning(
+                            f"OPSEC: {tool_selection.tool_name}",
+                            "active",
+                            f"OPSEC Score: {opsec_score.total_score}/100 ({opsec_score.risk_label})",
+                        )
+                        if self._opsec_engine.should_block_in_stealth(opsec_score):
+                            self._update_reasoning(
+                                f"OPSEC: {tool_selection.tool_name}",
+                                "blocked",
+                                f"OPSEC score {opsec_score.total_score} exceeds stealth threshold",
+                            )
+                            blocked_reasons.append(
+                                f"OPSEC: {tool_selection.tool_name} blocked (score: {opsec_score.total_score})"
+                            )
+                            continue
+                        self._update_reasoning(
+                            f"OPSEC: {tool_selection.tool_name}",
+                            "complete",
+                            f"OPSEC Score: {opsec_score.total_score}/100 ({opsec_score.risk_label})",
+                        )
+
                     tool_def = self._tool_registry.get_tool(tool_selection.tool_name)
                     policy = self._policy_engine.evaluate(
                         tool_selection.command_plan,
@@ -256,6 +356,16 @@ class Orchestrator:
                             continue
 
                     self._update_reasoning(f"TOOL: {tool_selection.tool_name}", "running", "Executing command")
+
+                    if self._stealth_mode:
+                        jitter = await self._traffic_profiler.apply_jitter()
+                        if jitter > 0:
+                            self._update_reasoning(
+                                f"STEALTH JITTER",
+                                "complete",
+                                f"Applied {jitter:.1f}s jitter delay",
+                            )
+
                     self._audit.log_command_execution(
                         task_id=investigation_id,
                         execution_id="",
@@ -297,6 +407,20 @@ class Orchestrator:
                             "complete",
                             f"Completed in {exec_result.duration_seconds:.1f}s",
                         )
+
+                        attack_mappings = self._attack_mapper.record_execution(
+                            tool_selection.tool_name, status="completed"
+                        )
+                        if attack_mappings:
+                            techniques = ", ".join(m.technique_id for m in attack_mappings[:3])
+                            self._update_reasoning(
+                                f"ATT&CK: {tool_selection.tool_name}",
+                                "complete",
+                                f"Techniques: {techniques}",
+                            )
+
+                        if self._stealth_mode:
+                            self._traffic_profiler.record_execution()
 
                         parsed = self._parser_registry.parse_output(
                             exec_result.stdout,
@@ -423,4 +547,3 @@ class Orchestrator:
         for entry in scope.entries:
             lines.append(f"{entry.scope_type.value}: {entry.value}")
         return "\n".join(lines)
-

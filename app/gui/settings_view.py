@@ -62,7 +62,6 @@ class SettingsPage(QWidget):
         )
         layout.addWidget(title)
 
-        # ── Ollama Configuration ──
         ollama_card, ollama_form = _section_card("Ollama Configuration")
 
         self._ollama_host = QLineEdit("http://localhost:11434")
@@ -81,7 +80,6 @@ class SettingsPage(QWidget):
 
         layout.addWidget(ollama_card)
 
-        # ── Security Policy ──
         security_card, security_form = _section_card("Security Policy")
 
         self._auto_approve_safe = _toggle(True)
@@ -106,7 +104,6 @@ class SettingsPage(QWidget):
 
         layout.addWidget(security_card)
 
-        # ── Execution Backends ──
         exec_card, exec_form = _section_card("Execution Backends")
 
         self._enable_wsl = _toggle(True)
@@ -122,7 +119,6 @@ class SettingsPage(QWidget):
 
         layout.addWidget(exec_card)
 
-        # ── Save ──
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
 
