@@ -1,0 +1,55 @@
+name: sslyze
+description: Fast SSL/TLS scanning library and CLI for analyzing server configurations
+category:
+- NETWORK_RECON
+- VULNERABILITY_ASSESSMENT
+binary: sslyze
+execution_backend:
+- wsl2
+- docker
+documentation: https://github.com/nabla-c0d3/sslyze
+capabilities:
+- ssl_scanning
+- heartbleed_detection
+- robot_detection
+- certificate_validation
+input_types:
+- domain
+- ip_address
+output_types:
+- ssl_info
+- vulnerabilities
+arguments:
+- name: regular
+  flag: --regular
+  description: Run regular scan
+  arg_type: boolean
+  required: false
+- name: certinfo
+  flag: --certinfo
+  description: Check certificate
+  arg_type: boolean
+  required: false
+- name: heartbleed
+  flag: --heartbleed
+  description: Check Heartbleed
+  arg_type: boolean
+  required: false
+required_arguments: []
+optional_arguments:
+- regular
+- certinfo
+danger_level: SAFE
+allowed_modes:
+- passive
+- active
+examples:
+- description: Full SSL analysis
+  command: sslyze --regular {target}
+  expected_output: SSL/TLS report
+  risk_level: SAFE
+expected_output_patterns: []
+error_patterns: []
+parser: generic
+default_timeout: 0
+requires_root: false

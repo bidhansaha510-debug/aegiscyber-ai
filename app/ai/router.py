@@ -294,19 +294,39 @@ class CyberTaskRouter:
                 target,
             )
 
-            if opsec_score.total_score >= 70 and opsec_score.stealth_alternatives:
-                best_alt = opsec_score.stealth_alternatives[0]
-                logger.info(
-                    "STEALTH: Replacing %s (OPSEC=%d) with %s (improvement=%d)",
-                    tool_sel.tool_name, opsec_score.total_score,
-                    best_alt.alternative_tool, best_alt.opsec_improvement,
+            if opsec_score.total_score >= 70:
+                fallback = self._opsec.resolve_stealth_fallback(
+                    tool_sel.command_plan.executable,
+                    tool_sel.command_plan.arguments,
+                    target,
                 )
-                tool_sel.reason = (
-                    f"[STEALTH] {best_alt.technique_description} "
-                    f"(replaces {tool_sel.tool_name}, OPSEC improvement: -{best_alt.opsec_improvement})"
-                )
+                if fallback:
+                    alt_exec, alt_args = fallback
+                    alt_score = self._opsec.evaluate_command(alt_exec, alt_args, target)
+                    original_tool = tool_sel.tool_name
+                    tool_sel.tool_name = alt_exec
+                    tool_sel.command_plan = CommandPlan(
+                        executable=alt_exec,
+                        arguments=alt_args,
+                        target=target,
+                        timeout=tool_sel.command_plan.timeout,
+                        backend="wsl2",
+                        explanation=f"Stealth fallback replacing {original_tool}",
+                        risk_level="LOW_RISK",
+                    )
+                    tool_sel.reason = (
+                        f"[STEALTH] {alt_exec} fallback — replaces {original_tool} "
+                        f"(OPSEC {opsec_score.total_score} → {alt_score.total_score})"
+                    )
+                    logger.info(
+                        "STEALTH: Replaced %s (OPSEC=%d) with %s (OPSEC=%d)",
+                        original_tool, opsec_score.total_score,
+                        alt_exec, alt_score.total_score,
+                    )
+                    stealth_selections.append(tool_sel)
+                    continue
 
-            if tool_sel.command_plan:
+            if tool_sel.command_plan and tool_sel.command_plan.executable != "bash":
                 evaded_args = self._evader.apply_evasion_to_args(
                     tool_sel.tool_name,
                     tool_sel.command_plan.arguments,

@@ -1,0 +1,42 @@
+name: nbtscan
+description: NetBIOS name network scanner
+category:
+- NETWORK_RECON
+- SERVICE_ENUMERATION
+binary: nbtscan
+execution_backend:
+- wsl2
+- docker
+documentation: http://www.unixwiz.net/tools/nbtscan.html
+capabilities:
+- netbios_scanning
+- host_discovery
+- name_resolution
+input_types:
+- ip_address
+- ip_range
+output_types:
+- netbios_info
+- hostnames
+arguments:
+- name: verbose
+  flag: -v
+  description: Verbose
+  arg_type: boolean
+  required: false
+required_arguments: []
+optional_arguments:
+- verbose
+danger_level: LOW_RISK
+allowed_modes:
+- active
+examples:
+- description: NetBIOS scan
+  command: nbtscan {target}/24
+  expected_output: NetBIOS names
+  risk_level: LOW_RISK
+expected_output_patterns: []
+error_patterns: []
+parser: generic
+default_timeout: 0
+requires_root: false

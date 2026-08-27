@@ -1,0 +1,52 @@
+name: xsstrike
+description: Advanced XSS detection suite with fuzzing engine and context analysis
+category:
+- VULNERABILITY_ASSESSMENT
+- WEB_RECON
+binary: xsstrike
+execution_backend:
+- wsl2
+- docker
+documentation: https://github.com/s0md3v/XSStrike
+capabilities:
+- xss_detection
+- dom_xss_detection
+- waf_bypass
+input_types:
+- url
+output_types:
+- vulnerabilities
+arguments:
+- name: url
+  flag: -u
+  description: Target URL
+  arg_type: string
+  required: true
+- name: crawl
+  flag: --crawl
+  description: Crawl and test
+  arg_type: boolean
+  required: false
+- name: fuzzer
+  flag: --fuzzer
+  description: Use fuzzer
+  arg_type: boolean
+  required: false
+required_arguments:
+- url
+optional_arguments:
+- crawl
+- fuzzer
+danger_level: HIGH_RISK
+allowed_modes:
+- active
+examples:
+- description: XSS scan
+  command: xsstrike -u {target} --crawl
+  expected_output: XSS findings
+  risk_level: HIGH_RISK
+expected_output_patterns: []
+error_patterns: []
+parser: generic
+default_timeout: 0
+requires_root: false

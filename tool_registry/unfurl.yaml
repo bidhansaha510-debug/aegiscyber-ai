@@ -1,0 +1,40 @@
+name: unfurl
+description: Pull out bits of URLs provided on stdin for analysis and filtering
+category:
+- UTILITY
+- WEB_RECON
+binary: unfurl
+execution_backend:
+- wsl2
+- docker
+documentation: https://github.com/tomnomnom/unfurl
+capabilities:
+- url_parsing
+- domain_extraction
+- parameter_extraction
+input_types:
+- url
+output_types:
+- url_components
+arguments:
+- name: mode
+  flag: ''
+  description: Mode (keys, values, domains, paths, format)
+  arg_type: string
+  required: true
+required_arguments:
+- mode
+optional_arguments: []
+danger_level: SAFE
+allowed_modes:
+- passive
+examples:
+- description: Extract domains
+  command: cat urls.txt | unfurl domains
+  expected_output: Domain names
+  risk_level: SAFE
+expected_output_patterns: []
+error_patterns: []
+parser: generic
+default_timeout: 0
+requires_root: false

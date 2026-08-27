@@ -1,0 +1,64 @@
+name: spiderfoot
+description: OSINT automation tool that queries over 100 data sources for intelligence
+  gathering
+category:
+- OSINT
+- DOMAIN_OSINT
+- NETWORK_RECON
+binary: spiderfoot
+execution_backend:
+- wsl2
+- docker
+documentation: https://github.com/smicallef/spiderfoot
+capabilities:
+- osint_automation
+- threat_intelligence
+- domain_recon
+- social_media_recon
+input_types:
+- domain
+- ip_address
+- email
+- hostname
+output_types:
+- osint_data
+- relationships
+arguments:
+- name: scan
+  flag: -s
+  description: Scan target
+  arg_type: string
+  required: true
+- name: types
+  flag: -t
+  description: Scan types
+  arg_type: string
+  required: false
+- name: output
+  flag: -o
+  description: Output format (csv, json)
+  arg_type: string
+  required: false
+- name: quiet
+  flag: -q
+  description: Quiet mode
+  arg_type: boolean
+  required: false
+required_arguments:
+- scan
+optional_arguments:
+- types
+- output
+danger_level: SAFE
+allowed_modes:
+- passive
+examples:
+- description: OSINT scan
+  command: spiderfoot -s {target} -q
+  expected_output: OSINT data
+  risk_level: SAFE
+expected_output_patterns: []
+error_patterns: []
+parser: generic
+default_timeout: 0
+requires_root: false

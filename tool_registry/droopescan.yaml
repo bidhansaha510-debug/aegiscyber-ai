@@ -1,0 +1,55 @@
+name: droopescan
+description: CMS vulnerability scanner for Drupal, Joomla, Moodle, Silverstripe, and
+  WordPress
+category:
+- WEB_RECON
+- VULNERABILITY_ASSESSMENT
+binary: droopescan
+execution_backend:
+- wsl2
+- docker
+documentation: https://github.com/SamJoan/droopescan
+capabilities:
+- cms_scanning
+- drupal_scanning
+- version_detection
+input_types:
+- url
+output_types:
+- vulnerabilities
+- cms_info
+arguments:
+- name: scan_type
+  flag: scan
+  description: Scan type (drupal, joomla, wordpress)
+  arg_type: string
+  required: true
+- name: url
+  flag: -u
+  description: Target URL
+  arg_type: string
+  required: true
+- name: threads
+  flag: -t
+  description: Threads
+  arg_type: integer
+  required: false
+  default: 4
+required_arguments:
+- scan_type
+- url
+optional_arguments:
+- threads
+danger_level: MEDIUM_RISK
+allowed_modes:
+- active
+examples:
+- description: Drupal scan
+  command: droopescan scan drupal -u {target}
+  expected_output: CMS version and vulnerabilities
+  risk_level: MEDIUM_RISK
+expected_output_patterns: []
+error_patterns: []
+parser: generic
+default_timeout: 0
+requires_root: false

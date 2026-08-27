@@ -1,0 +1,49 @@
+name: fierce
+description: DNS recon tool for locating non-contiguous IP space and hostnames
+category:
+- DNS
+- SUBDOMAIN_DISCOVERY
+- NETWORK_RECON
+binary: fierce
+execution_backend:
+- wsl2
+- docker
+documentation: https://github.com/mschwager/fierce
+capabilities:
+- dns_enumeration
+- subdomain_discovery
+- zone_transfer_check
+input_types:
+- domain
+output_types:
+- dns_records
+- subdomains
+- ips
+arguments:
+- name: domain
+  flag: --domain
+  description: Target domain
+  arg_type: string
+  required: true
+- name: subdomains
+  flag: --subdomains
+  description: Subdomain wordlist
+  arg_type: file_path
+  required: false
+required_arguments:
+- domain
+optional_arguments:
+- subdomains
+danger_level: SAFE
+allowed_modes:
+- passive
+examples:
+- description: DNS recon
+  command: fierce --domain {target}
+  expected_output: Subdomains and zones
+  risk_level: SAFE
+expected_output_patterns: []
+error_patterns: []
+parser: generic
+default_timeout: 0
+requires_root: false

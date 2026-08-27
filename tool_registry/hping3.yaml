@@ -1,0 +1,60 @@
+name: hping3
+description: Network tool for custom TCP/IP packet crafting and firewall testing
+category:
+- NETWORK_RECON
+- PORT_SCANNING
+binary: hping3
+execution_backend:
+- wsl2
+- docker
+documentation: http://www.hping.org/
+capabilities:
+- packet_crafting
+- firewall_testing
+- os_fingerprinting
+- traceroute
+input_types:
+- ip_address
+- domain
+output_types:
+- packet_responses
+arguments:
+- name: syn
+  flag: -S
+  description: SYN flag
+  arg_type: boolean
+  required: false
+- name: port
+  flag: -p
+  description: Target port
+  arg_type: integer
+  required: false
+- name: count
+  flag: -c
+  description: Packet count
+  arg_type: integer
+  required: false
+  default: 3
+- name: traceroute
+  flag: -T
+  description: Traceroute mode
+  arg_type: boolean
+  required: false
+required_arguments: []
+optional_arguments:
+- syn
+- port
+- count
+danger_level: MEDIUM_RISK
+allowed_modes:
+- active
+examples:
+- description: SYN probe
+  command: hping3 -S -p 80 -c 3 {target}
+  expected_output: TCP responses
+  risk_level: MEDIUM_RISK
+expected_output_patterns: []
+error_patterns: []
+parser: generic
+default_timeout: 0
+requires_root: true

@@ -19,6 +19,7 @@ from app.gui.widgets.status_bar import StatusBarWidget
 from app.gui.widgets.kill_switch import KillSwitchButton
 from app.gui.widgets.scope_dialog import ScopeDialog
 from app.gui.widgets.approval_dialog import ApprovalDialog
+from app.gui.widgets.sandbox_window import SandboxAttackWindow
 from app.gui.dashboard import DashboardPage
 from app.gui.terminal_view import TerminalPage
 from app.gui.tools_view import ToolsPage
@@ -31,6 +32,12 @@ from app.logging_config import get_logger
 
 logger = get_logger("gui.main_window")
 
+_ATTACK_KEYWORDS = (
+    "attack", "exploit", "pentest", "pen test", "penetration",
+    "compromise", "intrude", "intrusion", "breach", "brute force",
+    "bruteforce", "crack", "red team", "redteam", "hack",
+)
+
 
 class AsyncBridge(QObject):
     coro_completed = Signal(object, object)
@@ -40,6 +47,7 @@ class AsyncBridge(QObject):
     live_output = Signal(str, bool)
     command_started = Signal(str, str, str)
     command_finished = Signal(str, bool, float)
+    command_result = Signal(dict)
     poc_generated = Signal(list)
 
     def __init__(self, loop: asyncio.AbstractEventLoop | None, parent=None):
@@ -72,6 +80,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self._orchestrator = orchestrator
         self._loop = loop
+        self._sandbox_window: SandboxAttackWindow | None = None
         self._bridge = AsyncBridge(self._loop, self)
         self._bridge.coro_completed.connect(self._handle_coro_completed)
         self._bridge.coro_failed.connect(self._handle_coro_failed)
@@ -80,6 +89,7 @@ class MainWindow(QMainWindow):
         self._bridge.live_output.connect(self._handle_live_output)
         self._bridge.command_started.connect(self._handle_command_started)
         self._bridge.command_finished.connect(self._handle_command_finished)
+        self._bridge.command_result.connect(self._handle_command_result)
         self._bridge.poc_generated.connect(self._handle_poc_generated)
 
         self._setup_window()
@@ -92,6 +102,7 @@ class MainWindow(QMainWindow):
             self._orchestrator._exec_manager.on_update(self._on_exec_update)
             self._orchestrator.on_command_started(lambda t, b, c: self._bridge.command_started.emit(t, b, c))
             self._orchestrator.on_command_finished(lambda t, s, d: self._bridge.command_finished.emit(t, s, d))
+            self._orchestrator.on_command_result(lambda r: self._bridge.command_result.emit(r))
             self._orchestrator.on_poc_generated(lambda pocs: self._bridge.poc_generated.emit(pocs))
             self._orchestrator.on_stealth_update(self._on_stealth_data)
             self._load_tools_table()
@@ -293,15 +304,24 @@ class MainWindow(QMainWindow):
     @Slot(str, bool)
     def _handle_live_output(self, chunk: str, is_error: bool) -> None:
         self._live_terminal.append_chunk(chunk, is_error)
+        if self._sandbox_window is not None:
+            self._sandbox_window.append_output_chunk(chunk, is_error)
 
     @Slot(str, str, str)
     def _handle_command_started(self, tool: str, backend: str, cmd: str) -> None:
         self._live_terminal.start_command(tool, backend, cmd)
+        if self._sandbox_window is not None:
+            self._sandbox_window.command_started(tool, backend, cmd)
 
     @Slot(str, bool, float)
     def _handle_command_finished(self, tool: str, success: bool, duration: float) -> None:
         self._live_terminal.finish_command(tool, success, duration)
         self._update_status()
+
+    @Slot(dict)
+    def _handle_command_result(self, result: dict) -> None:
+        if self._sandbox_window is not None:
+            self._sandbox_window.command_result(result)
 
     @Slot(list)
     def _handle_poc_generated(self, pocs: list) -> None:
@@ -423,6 +443,8 @@ class MainWindow(QMainWindow):
     @Slot(list)
     def _handle_reasoning_updated(self, steps_data: list) -> None:
         self._reasoning_panel.update_steps(steps_data)
+        if self._sandbox_window is not None:
+            self._sandbox_window.update_reasoning_steps(steps_data)
 
     def _on_chat_message(self, message: str) -> None:
         if not self._orchestrator or not self._loop:
@@ -433,22 +455,47 @@ class MainWindow(QMainWindow):
         self._reasoning_panel.clear_steps()
         self._reasoning_panel.set_investigation_id("running...")
 
+        if self._is_attack_request(message):
+            self._open_sandbox_window(message)
+
         self._bridge.run(
             self._orchestrator.process_request(message),
             on_success=self._on_chat_response,
             on_error=self._on_chat_error,
         )
 
+    def _is_attack_request(self, message: str) -> bool:
+        lowered = message.lower()
+        return any(keyword in lowered for keyword in _ATTACK_KEYWORDS)
+
+    def _open_sandbox_window(self, request_text: str) -> None:
+        if self._sandbox_window is not None:
+            self._sandbox_window.finalize("Superseded by a new attack request.")
+            self._sandbox_window.close_now()
+        self._sandbox_window = SandboxAttackWindow(self)
+        self._sandbox_window.closed.connect(self._on_sandbox_closed)
+        self._sandbox_window.start(request_text)
+        self._sandbox_window.show()
+        self._sandbox_window.raise_()
+        self._sandbox_window.activateWindow()
+
+    def _on_sandbox_closed(self) -> None:
+        self._sandbox_window = None
+
     def _on_chat_response(self, response: str) -> None:
         self._chat.append_message("assistant", response)
         self._chat.set_loading(False)
         if self._orchestrator:
             self._reasoning_panel.set_investigation_id(self._orchestrator.state.investigation_id)
+        if self._sandbox_window is not None:
+            self._sandbox_window.finalize("Investigation finished.")
         self._update_status()
 
     def _on_chat_error(self, error: str) -> None:
         self._chat.append_message("assistant", f"Error: {error}")
         self._chat.set_loading(False)
+        if self._sandbox_window is not None:
+            self._sandbox_window.finalize(f"Operation failed: {error}")
         self._update_status()
 
     @Slot(object, object)
@@ -555,6 +602,9 @@ class MainWindow(QMainWindow):
             ks.engage("User activated kill switch")
             self._status_bar.set_kill_switch(True)
             self._chat.append_message("system", "EMERGENCY STOP ACTIVATED. All executions halted.")
+            if self._sandbox_window is not None:
+                self._sandbox_window.finalize("Kill switch engaged.")
+                self._sandbox_window.close_now()
 
     def _on_stealth_toggle(self) -> None:
         """Toggle stealth mode on/off."""

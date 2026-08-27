@@ -74,6 +74,7 @@ class ExecutionConfig(BaseSettings):
     docker_image: str = "kalilinux/kali-rolling"
     enable_wsl: bool = True
     enable_docker: bool = True
+    auto_start_docker: bool = True
     enable_native: bool = True
     max_output_size_bytes: int = 10 * 1024 * 1024
 

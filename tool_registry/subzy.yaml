@@ -1,0 +1,46 @@
+name: subzy
+description: Subdomain takeover vulnerability checker
+category:
+- VULNERABILITY_ASSESSMENT
+- SUBDOMAIN_DISCOVERY
+binary: subzy
+execution_backend:
+- wsl2
+- docker
+documentation: https://github.com/PentestPad/subzy
+capabilities:
+- subdomain_takeover_detection
+input_types:
+- file
+- domain
+output_types:
+- vulnerabilities
+arguments:
+- name: targets
+  flag: --targets
+  description: Target file
+  arg_type: file_path
+  required: true
+- name: concurrency
+  flag: --concurrency
+  description: Concurrent checks
+  arg_type: integer
+  required: false
+  default: 10
+required_arguments:
+- targets
+optional_arguments:
+- concurrency
+danger_level: MEDIUM_RISK
+allowed_modes:
+- active
+examples:
+- description: Takeover check
+  command: subzy --targets subdomains.txt
+  expected_output: Takeover results
+  risk_level: MEDIUM_RISK
+expected_output_patterns: []
+error_patterns: []
+parser: generic
+default_timeout: 0
+requires_root: false

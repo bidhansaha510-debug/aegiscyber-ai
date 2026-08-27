@@ -1,0 +1,58 @@
+name: dnsrecon
+description: DNS enumeration tool supporting zone transfers, cache snooping, and brute
+  force
+category:
+- DNS
+- NETWORK_RECON
+- SUBDOMAIN_DISCOVERY
+binary: dnsrecon
+execution_backend:
+- wsl2
+- docker
+documentation: https://github.com/darkoperator/dnsrecon
+capabilities:
+- dns_enumeration
+- zone_transfer
+- subdomain_bruteforce
+- srv_enumeration
+input_types:
+- domain
+output_types:
+- dns_records
+- subdomains
+arguments:
+- name: domain
+  flag: -d
+  description: Target domain
+  arg_type: string
+  required: true
+- name: type
+  flag: -t
+  description: Type (std, brt, srv, axfr)
+  arg_type: string
+  required: false
+  default: std
+- name: nameserver
+  flag: -n
+  description: DNS server
+  arg_type: string
+  required: false
+required_arguments:
+- domain
+optional_arguments:
+- type
+- nameserver
+danger_level: SAFE
+allowed_modes:
+- passive
+- active
+examples:
+- description: Standard DNS enum
+  command: dnsrecon -d {target} -t std
+  expected_output: DNS records
+  risk_level: SAFE
+expected_output_patterns: []
+error_patterns: []
+parser: generic
+default_timeout: 0
+requires_root: false

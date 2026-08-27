@@ -1,0 +1,65 @@
+name: dirsearch
+description: Web path discovery tool with recursive brute-forcing capabilities
+category:
+- WEB_RECON
+- SUBDOMAIN_DISCOVERY
+binary: dirsearch
+execution_backend:
+- wsl2
+- docker
+documentation: https://github.com/maurosoria/dirsearch
+capabilities:
+- directory_bruteforce
+- path_discovery
+- content_discovery
+input_types:
+- url
+output_types:
+- directories
+- files
+arguments:
+- name: url
+  flag: -u
+  description: Target URL
+  arg_type: string
+  required: true
+- name: extensions
+  flag: -e
+  description: File extensions
+  arg_type: string
+  required: false
+- name: threads
+  flag: -t
+  description: Threads
+  arg_type: integer
+  required: false
+  default: 30
+- name: recursive
+  flag: -r
+  description: Recursive scanning
+  arg_type: boolean
+  required: false
+- name: wordlist
+  flag: -w
+  description: Custom wordlist
+  arg_type: file_path
+  required: false
+required_arguments:
+- url
+optional_arguments:
+- extensions
+- threads
+- wordlist
+danger_level: MEDIUM_RISK
+allowed_modes:
+- active
+examples:
+- description: Dir scan
+  command: dirsearch -u {target} -e php,html,js
+  expected_output: Found directories and files
+  risk_level: MEDIUM_RISK
+expected_output_patterns: []
+error_patterns: []
+parser: generic
+default_timeout: 0
+requires_root: false

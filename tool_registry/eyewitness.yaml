@@ -1,0 +1,65 @@
+name: eyewitness
+description: Web application screenshot tool for rapid triage of large-scale targets
+category:
+- WEB_RECON
+- OSINT
+binary: eyewitness
+execution_backend:
+- wsl2
+- docker
+documentation: https://github.com/RedSiege/EyeWitness
+capabilities:
+- web_screenshot
+- technology_detection
+- visual_recon
+input_types:
+- url
+- file
+output_types:
+- screenshots
+- reports
+arguments:
+- name: single
+  flag: --single
+  description: Single URL
+  arg_type: string
+  required: false
+- name: file
+  flag: -f
+  description: URL file
+  arg_type: file_path
+  required: false
+- name: web
+  flag: --web
+  description: Web scan
+  arg_type: boolean
+  required: false
+- name: output_dir
+  flag: -d
+  description: Output directory
+  arg_type: file_path
+  required: false
+- name: no_prompt
+  flag: --no-prompt
+  description: No prompt
+  arg_type: boolean
+  required: false
+required_arguments: []
+optional_arguments:
+- single
+- file
+- web
+danger_level: SAFE
+allowed_modes:
+- passive
+- active
+examples:
+- description: Screenshot URL
+  command: eyewitness --single {target} --web --no-prompt
+  expected_output: Screenshot report
+  risk_level: SAFE
+expected_output_patterns: []
+error_patterns: []
+parser: generic
+default_timeout: 0
+requires_root: false

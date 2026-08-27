@@ -1,0 +1,52 @@
+name: gau
+description: Fetch known URLs from AlienVault OTX, Wayback Machine, and Common Crawl
+category:
+- WEB_RECON
+- OSINT
+binary: gau
+execution_backend:
+- wsl2
+- docker
+documentation: https://github.com/lc/gau
+capabilities:
+- url_discovery
+- wayback_crawling
+- passive_recon
+input_types:
+- domain
+output_types:
+- urls
+arguments:
+- name: providers
+  flag: --providers
+  description: Providers (wayback, commoncrawl, otx)
+  arg_type: string
+  required: false
+- name: subs
+  flag: --subs
+  description: Include subdomains
+  arg_type: boolean
+  required: false
+- name: output
+  flag: -o
+  description: Output file
+  arg_type: file_path
+  required: false
+required_arguments: []
+optional_arguments:
+- providers
+- subs
+- output
+danger_level: SAFE
+allowed_modes:
+- passive
+examples:
+- description: Fetch known URLs
+  command: echo {target} | gau --subs
+  expected_output: Known URLs
+  risk_level: SAFE
+expected_output_patterns: []
+error_patterns: []
+parser: generic
+default_timeout: 0
+requires_root: false

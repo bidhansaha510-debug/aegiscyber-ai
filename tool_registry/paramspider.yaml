@@ -1,0 +1,53 @@
+name: paramspider
+description: Mining URLs from web archives for bug bounty parameter discovery
+category:
+- WEB_RECON
+- OSINT
+binary: paramspider
+execution_backend:
+- wsl2
+- docker
+documentation: https://github.com/devanshbatham/ParamSpider
+capabilities:
+- parameter_discovery
+- url_mining
+- wayback_crawling
+input_types:
+- domain
+output_types:
+- urls
+- parameters
+arguments:
+- name: domain
+  flag: -d
+  description: Target domain
+  arg_type: string
+  required: true
+- name: exclude
+  flag: --exclude
+  description: Exclude extensions
+  arg_type: string
+  required: false
+- name: output
+  flag: -o
+  description: Output file
+  arg_type: file_path
+  required: false
+required_arguments:
+- domain
+optional_arguments:
+- exclude
+- output
+danger_level: SAFE
+allowed_modes:
+- passive
+examples:
+- description: Mine params
+  command: paramspider -d {target}
+  expected_output: Parameterized URLs
+  risk_level: SAFE
+expected_output_patterns: []
+error_patterns: []
+parser: generic
+default_timeout: 0
+requires_root: false

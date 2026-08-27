@@ -1,0 +1,46 @@
+name: hakrawler
+description: Simple fast web crawler for discovering endpoints and assets
+category:
+- WEB_RECON
+binary: hakrawler
+execution_backend:
+- wsl2
+- docker
+documentation: https://github.com/hakluke/hakrawler
+capabilities:
+- web_crawling
+- endpoint_discovery
+input_types:
+- url
+- domain
+output_types:
+- urls
+arguments:
+- name: depth
+  flag: -d
+  description: Depth
+  arg_type: integer
+  required: false
+  default: 2
+- name: subs
+  flag: -subs
+  description: Include subdomains
+  arg_type: boolean
+  required: false
+required_arguments: []
+optional_arguments:
+- depth
+- subs
+danger_level: SAFE
+allowed_modes:
+- passive
+examples:
+- description: Crawl
+  command: echo {target} | hakrawler -d 2
+  expected_output: Endpoints
+  risk_level: SAFE
+expected_output_patterns: []
+error_patterns: []
+parser: generic
+default_timeout: 0
+requires_root: false

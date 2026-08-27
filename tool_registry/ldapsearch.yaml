@@ -1,0 +1,56 @@
+name: ldapsearch
+description: LDAP client for searching and querying directory services
+category:
+- SERVICE_ENUMERATION
+- NETWORK_RECON
+binary: ldapsearch
+execution_backend:
+- wsl2
+- docker
+documentation: https://linux.die.net/man/1/ldapsearch
+capabilities:
+- ldap_enumeration
+- user_enumeration
+- ad_enumeration
+input_types:
+- ip_address
+- hostname
+- domain
+output_types:
+- ldap_objects
+- users
+- groups
+arguments:
+- name: host
+  flag: -H
+  description: LDAP URI
+  arg_type: string
+  required: true
+- name: base
+  flag: -b
+  description: Search base
+  arg_type: string
+  required: false
+- name: anonymous
+  flag: -x
+  description: Simple auth
+  arg_type: boolean
+  required: false
+required_arguments:
+- host
+optional_arguments:
+- base
+- anonymous
+danger_level: LOW_RISK
+allowed_modes:
+- active
+examples:
+- description: Anonymous query
+  command: ldapsearch -H ldap://{target} -x -b '' -s base
+  expected_output: LDAP root DSE
+  risk_level: LOW_RISK
+expected_output_patterns: []
+error_patterns: []
+parser: generic
+default_timeout: 0
+requires_root: false

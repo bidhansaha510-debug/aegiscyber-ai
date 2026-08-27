@@ -1,0 +1,52 @@
+name: arjun
+description: HTTP parameter discovery tool for hidden GET and POST parameters
+category:
+- WEB_RECON
+binary: arjun
+execution_backend:
+- wsl2
+- docker
+documentation: https://github.com/s0md3v/Arjun
+capabilities:
+- parameter_discovery
+- hidden_param_detection
+input_types:
+- url
+output_types:
+- parameters
+arguments:
+- name: url
+  flag: -u
+  description: Target URL
+  arg_type: string
+  required: true
+- name: method
+  flag: -m
+  description: HTTP method
+  arg_type: string
+  required: false
+  default: GET
+- name: threads
+  flag: -t
+  description: Threads
+  arg_type: integer
+  required: false
+  default: 5
+required_arguments:
+- url
+optional_arguments:
+- method
+- threads
+danger_level: MEDIUM_RISK
+allowed_modes:
+- active
+examples:
+- description: Discover params
+  command: arjun -u {target} -m GET
+  expected_output: Hidden parameters
+  risk_level: MEDIUM_RISK
+expected_output_patterns: []
+error_patterns: []
+parser: generic
+default_timeout: 0
+requires_root: false

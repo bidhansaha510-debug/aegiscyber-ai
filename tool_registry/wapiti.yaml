@@ -1,0 +1,56 @@
+name: wapiti
+description: Web application vulnerability scanner for XSS, SQLi, file inclusion,
+  command injection
+category:
+- WEB_RECON
+- VULNERABILITY_ASSESSMENT
+binary: wapiti
+execution_backend:
+- wsl2
+- docker
+documentation: https://wapiti-scanner.github.io/
+capabilities:
+- xss_detection
+- sql_injection_detection
+- file_inclusion_detection
+- command_injection_detection
+input_types:
+- url
+output_types:
+- vulnerabilities
+arguments:
+- name: url
+  flag: -u
+  description: Target URL
+  arg_type: string
+  required: true
+- name: scope
+  flag: -s
+  description: Scope (url, page, folder, domain)
+  arg_type: string
+  required: false
+  default: folder
+- name: format
+  flag: -f
+  description: Report format
+  arg_type: string
+  required: false
+  default: json
+required_arguments:
+- url
+optional_arguments:
+- scope
+- format
+danger_level: MEDIUM_RISK
+allowed_modes:
+- active
+examples:
+- description: Full vuln scan
+  command: wapiti -u {target} -f json
+  expected_output: Vulnerability report
+  risk_level: MEDIUM_RISK
+expected_output_patterns: []
+error_patterns: []
+parser: generic
+default_timeout: 0
+requires_root: false

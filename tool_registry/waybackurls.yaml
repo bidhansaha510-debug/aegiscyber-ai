@@ -1,0 +1,45 @@
+name: waybackurls
+description: Fetch all URLs known to Wayback Machine for a domain
+category:
+- WEB_RECON
+- OSINT
+binary: waybackurls
+execution_backend:
+- wsl2
+- docker
+documentation: https://github.com/tomnomnom/waybackurls
+capabilities:
+- url_discovery
+- wayback_crawling
+- passive_recon
+input_types:
+- domain
+output_types:
+- urls
+arguments:
+- name: dates
+  flag: -dates
+  description: Show date of fetch
+  arg_type: boolean
+  required: false
+- name: get_versions
+  flag: -get-versions
+  description: Get all versions of URLs
+  arg_type: boolean
+  required: false
+required_arguments: []
+optional_arguments:
+- dates
+danger_level: SAFE
+allowed_modes:
+- passive
+examples:
+- description: Fetch Wayback URLs
+  command: echo {target} | waybackurls
+  expected_output: Historical URLs
+  risk_level: SAFE
+expected_output_patterns: []
+error_patterns: []
+parser: generic
+default_timeout: 0
+requires_root: false

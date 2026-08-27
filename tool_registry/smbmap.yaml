@@ -1,0 +1,59 @@
+name: smbmap
+description: SMB share enumeration and permission checking tool
+category:
+- SERVICE_ENUMERATION
+- NETWORK_RECON
+binary: smbmap
+execution_backend:
+- wsl2
+- docker
+documentation: https://github.com/ShawnDEvans/smbmap
+capabilities:
+- smb_enumeration
+- share_discovery
+- permission_check
+input_types:
+- ip_address
+- hostname
+output_types:
+- shares
+- permissions
+arguments:
+- name: host
+  flag: -H
+  description: Target host
+  arg_type: string
+  required: true
+- name: username
+  flag: -u
+  description: Username
+  arg_type: string
+  required: false
+- name: password
+  flag: -p
+  description: Password
+  arg_type: string
+  required: false
+- name: recursive
+  flag: -R
+  description: Recursive listing
+  arg_type: boolean
+  required: false
+required_arguments:
+- host
+optional_arguments:
+- username
+- password
+danger_level: MEDIUM_RISK
+allowed_modes:
+- active
+examples:
+- description: Enumerate shares
+  command: smbmap -H {target}
+  expected_output: Share listing
+  risk_level: MEDIUM_RISK
+expected_output_patterns: []
+error_patterns: []
+parser: generic
+default_timeout: 0
+requires_root: false

@@ -1,0 +1,66 @@
+name: naabu
+description: Fast port scanner by ProjectDiscovery written in Go
+category:
+- PORT_SCANNING
+- NETWORK_RECON
+binary: naabu
+execution_backend:
+- wsl2
+- docker
+documentation: https://github.com/projectdiscovery/naabu
+capabilities:
+- fast_port_scanning
+- host_discovery
+- service_detection
+input_types:
+- ip_address
+- domain
+- ip_range
+output_types:
+- open_ports
+arguments:
+- name: host
+  flag: -host
+  description: Target host
+  arg_type: string
+  required: true
+- name: ports
+  flag: -p
+  description: Ports to scan
+  arg_type: string
+  required: false
+- name: top_ports
+  flag: -top-ports
+  description: Top N ports
+  arg_type: integer
+  required: false
+- name: rate
+  flag: -rate
+  description: Packets per second
+  arg_type: integer
+  required: false
+  default: 1000
+- name: silent
+  flag: -silent
+  description: Silent output
+  arg_type: boolean
+  required: false
+required_arguments:
+- host
+optional_arguments:
+- ports
+- top_ports
+- rate
+danger_level: MEDIUM_RISK
+allowed_modes:
+- active
+examples:
+- description: Top 100 ports
+  command: naabu -host {target} -top-ports 100 -silent
+  expected_output: Open ports
+  risk_level: MEDIUM_RISK
+expected_output_patterns: []
+error_patterns: []
+parser: generic
+default_timeout: 0
+requires_root: false

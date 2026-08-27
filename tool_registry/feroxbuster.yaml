@@ -1,0 +1,69 @@
+name: feroxbuster
+description: Fast recursive content discovery tool written in Rust
+category:
+- WEB_RECON
+- SUBDOMAIN_DISCOVERY
+binary: feroxbuster
+execution_backend:
+- wsl2
+- docker
+documentation: https://github.com/epi052/feroxbuster
+capabilities:
+- directory_bruteforce
+- recursive_scanning
+- content_discovery
+input_types:
+- url
+output_types:
+- directories
+- files
+- urls
+arguments:
+- name: url
+  flag: -u
+  description: Target URL
+  arg_type: string
+  required: true
+- name: wordlist
+  flag: -w
+  description: Wordlist path
+  arg_type: file_path
+  required: false
+  default: /usr/share/wordlists/dirb/common.txt
+- name: threads
+  flag: -t
+  description: Threads
+  arg_type: integer
+  required: false
+  default: 50
+- name: depth
+  flag: -d
+  description: Max depth
+  arg_type: integer
+  required: false
+  default: 2
+- name: extensions
+  flag: -x
+  description: File extensions
+  arg_type: string
+  required: false
+required_arguments:
+- url
+optional_arguments:
+- wordlist
+- threads
+- depth
+- extensions
+danger_level: MEDIUM_RISK
+allowed_modes:
+- active
+examples:
+- description: Recursive dir scan
+  command: feroxbuster -u {target} -w /usr/share/wordlists/dirb/common.txt -d 2
+  expected_output: Discovered directories
+  risk_level: MEDIUM_RISK
+expected_output_patterns: []
+error_patterns: []
+parser: generic
+default_timeout: 0
+requires_root: false

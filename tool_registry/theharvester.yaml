@@ -1,0 +1,78 @@
+﻿name: theharvester
+description: OSINT tool for gathering emails, subdomains, hosts, employee names, open ports and banners from public sources
+category:
+  - OSINT
+  - DOMAIN_OSINT
+  - SUBDOMAIN_DISCOVERY
+binary: theHarvester
+execution_backend:
+  - wsl2
+  - docker
+documentation: https://github.com/laramies/theHarvester
+capabilities:
+  - email_harvesting
+  - subdomain_enumeration
+  - host_discovery
+  - dns_enumeration
+input_types:
+  - domain
+output_types:
+  - emails
+  - subdomains
+  - hosts
+  - ips
+arguments:
+  - name: domain
+    flag: "-d"
+    description: Target domain
+    arg_type: string
+    required: true
+  - name: source
+    flag: "-b"
+    description: Data source (all, google, bing, linkedin, etc.)
+    arg_type: string
+    required: false
+    default: all
+  - name: limit
+    flag: "-l"
+    description: Limit number of results
+    arg_type: integer
+    required: false
+    default: 500
+  - name: start
+    flag: "-S"
+    description: Start result number
+    arg_type: integer
+    required: false
+  - name: filename
+    flag: "-f"
+    description: Save results to HTML and XML
+    arg_type: file_path
+    required: false
+required_arguments:
+  - domain
+optional_arguments:
+  - source
+  - limit
+danger_level: SAFE
+allowed_modes:
+  - passive
+examples:
+  - description: Gather emails and subdomains from all sources
+    command: "theHarvester -d {target} -b all -l 500"
+    expected_output: List of emails, subdomains, IPs
+    risk_level: SAFE
+expected_output_patterns:
+  - name: email_found
+    pattern: '[\w.+-]+@[\w-]+\.[\w.-]+'
+    description: Matches email addresses
+  - name: subdomain_found
+    pattern: '[\w.-]+\.{target}'
+    description: Matches discovered subdomains
+error_patterns:
+  - name: no_results
+    pattern: "No results found"
+    description: No data returned
+parser: generic
+default_timeout: 0
+requires_root: false

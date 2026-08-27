@@ -1,0 +1,63 @@
+name: gospider
+description: Fast web spider written in Go for crawling and extracting URLs, emails,
+  and resources
+category:
+- WEB_RECON
+- SUBDOMAIN_DISCOVERY
+binary: gospider
+execution_backend:
+- wsl2
+- docker
+documentation: https://github.com/jaeles-project/gospider
+capabilities:
+- web_crawling
+- url_extraction
+- subdomain_discovery
+input_types:
+- url
+- domain
+output_types:
+- urls
+- subdomains
+arguments:
+- name: site
+  flag: -s
+  description: Target site
+  arg_type: string
+  required: true
+- name: depth
+  flag: -d
+  description: Depth
+  arg_type: integer
+  required: false
+  default: 2
+- name: concurrent
+  flag: -c
+  description: Concurrency
+  arg_type: integer
+  required: false
+  default: 5
+- name: output
+  flag: -o
+  description: Output dir
+  arg_type: file_path
+  required: false
+required_arguments:
+- site
+optional_arguments:
+- depth
+- concurrent
+danger_level: SAFE
+allowed_modes:
+- passive
+- active
+examples:
+- description: Web crawl
+  command: gospider -s {target} -d 2
+  expected_output: Extracted URLs
+  risk_level: SAFE
+expected_output_patterns: []
+error_patterns: []
+parser: generic
+default_timeout: 0
+requires_root: false

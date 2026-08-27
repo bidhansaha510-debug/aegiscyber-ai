@@ -1,0 +1,62 @@
+name: uncover
+description: Quickly discover exposed hosts on the internet using Shodan, Censys,
+  FOFA, Hunter, Quake engines
+category:
+- OSINT
+- NETWORK_RECON
+binary: uncover
+execution_backend:
+- wsl2
+- docker
+documentation: https://github.com/projectdiscovery/uncover
+capabilities:
+- host_discovery
+- passive_recon
+- search_engine_dorking
+input_types:
+- domain
+- query
+output_types:
+- hosts
+- ips
+arguments:
+- name: query
+  flag: -q
+  description: Search query
+  arg_type: string
+  required: true
+- name: engine
+  flag: -e
+  description: Search engine (shodan, censys, fofa)
+  arg_type: string
+  required: false
+  default: shodan
+- name: limit
+  flag: -l
+  description: Result limit
+  arg_type: integer
+  required: false
+  default: 100
+- name: silent
+  flag: -silent
+  description: Silent output
+  arg_type: boolean
+  required: false
+required_arguments:
+- query
+optional_arguments:
+- engine
+- limit
+danger_level: SAFE
+allowed_modes:
+- passive
+examples:
+- description: Shodan search
+  command: uncover -q {target} -e shodan -silent
+  expected_output: Exposed hosts
+  risk_level: SAFE
+expected_output_patterns: []
+error_patterns: []
+parser: generic
+default_timeout: 0
+requires_root: false

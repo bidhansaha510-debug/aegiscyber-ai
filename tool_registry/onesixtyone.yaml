@@ -1,0 +1,47 @@
+name: onesixtyone
+description: Fast SNMP community string scanner
+category:
+- SERVICE_ENUMERATION
+- NETWORK_RECON
+binary: onesixtyone
+execution_backend:
+- wsl2
+- docker
+documentation: https://github.com/trailofbits/onesixtyone
+capabilities:
+- snmp_scanning
+- community_string_bruteforce
+input_types:
+- ip_address
+- ip_range
+output_types:
+- snmp_devices
+- community_strings
+arguments:
+- name: community_file
+  flag: -c
+  description: Community string file
+  arg_type: file_path
+  required: false
+- name: input_file
+  flag: -i
+  description: Input hosts file
+  arg_type: file_path
+  required: false
+required_arguments: []
+optional_arguments:
+- community_file
+- input_file
+danger_level: LOW_RISK
+allowed_modes:
+- active
+examples:
+- description: SNMP scan
+  command: onesixtyone {target}
+  expected_output: SNMP community strings
+  risk_level: LOW_RISK
+expected_output_patterns: []
+error_patterns: []
+parser: generic
+default_timeout: 0
+requires_root: false

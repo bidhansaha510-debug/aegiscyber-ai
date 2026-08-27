@@ -1,0 +1,51 @@
+name: commix
+description: Automated OS command injection and exploitation tool
+category:
+- VULNERABILITY_ASSESSMENT
+- WEB_RECON
+binary: commix
+execution_backend:
+- wsl2
+- docker
+documentation: https://github.com/commixproject/commix
+capabilities:
+- command_injection_detection
+input_types:
+- url
+output_types:
+- vulnerabilities
+arguments:
+- name: url
+  flag: -u
+  description: Target URL
+  arg_type: string
+  required: true
+- name: batch
+  flag: --batch
+  description: Non-interactive
+  arg_type: boolean
+  required: false
+- name: level
+  flag: --level
+  description: Test level (1-3)
+  arg_type: integer
+  required: false
+  default: 1
+required_arguments:
+- url
+optional_arguments:
+- batch
+- level
+danger_level: HIGH_RISK
+allowed_modes:
+- active
+examples:
+- description: Command injection test
+  command: commix -u {target} --batch
+  expected_output: Injection findings
+  risk_level: HIGH_RISK
+expected_output_patterns: []
+error_patterns: []
+parser: generic
+default_timeout: 0
+requires_root: false

@@ -107,6 +107,11 @@ NOISY_ARGUMENT_PATTERNS: list[tuple[re.Pattern, int, str]] = [
 ]
 
 
+class _SafeFormatDict(dict):
+    def __missing__(self, key: str) -> str:
+        return "{" + key + "}"
+
+
 class StealthAlternative(BaseModel):
     """A stealthier alternative to a noisy command."""
     original_tool: str
@@ -307,13 +312,13 @@ class OPSECEngine:
                 score.stealth_alternatives.append(StealthAlternative(
                     original_tool=exec_base,
                     alternative_tool=alt["tool"],
-                    alternative_command=alt["command"].format(
+                    alternative_command=alt["command"].format_map(_SafeFormatDict(
                         target=target or "{target}",
                         port="443",
                         ports="80,443",
                         user="{user}",
                         pass_="{pass}",
-                    ),
+                    )),
                     opsec_improvement=improvement,
                     trade_off=alt["trade_off"],
                     technique_description=alt["description"],
@@ -364,3 +369,51 @@ class OPSECEngine:
         if not self._stealth_mode:
             return False
         return score.total_score >= threshold
+
+    def resolve_stealth_fallback(
+        self,
+        executable: str,
+        arguments: list[str],
+        target: str = "",
+        threshold: int = 70,
+        max_depth: int = 2,
+    ) -> tuple[str, list[str]] | None:
+        """Find a stealthier replacement for a blocked command.
+
+        Walks the stealth-alternatives graph (up to max_depth hops), wrapping
+        each alternative as a shell one-liner. Returns (executable, arguments)
+        for the first candidate that scores below the threshold, or None.
+        """
+        if not self._stealth_mode:
+            return None
+
+        exec_base = executable.lower().split("/")[-1].split("\\")[-1]
+        visited = {exec_base}
+        candidates: list[tuple[str, str, list[str]]] = [(exec_base, executable, arguments)]
+
+        for _ in range(max_depth):
+            next_candidates: list[tuple[str, str, list[str]]] = []
+            for lookup, cand_exec, cand_args in candidates:
+                score = self.evaluate_command(cand_exec, cand_args, target)
+                if score.total_score < threshold:
+                    return cand_exec, cand_args
+                for alt in STEALTH_ALTERNATIVES.get(lookup, []):
+                    alt_tool = alt["tool"]
+                    if alt_tool in visited:
+                        continue
+                    visited.add(alt_tool)
+                    snippet = alt["command"].format_map(_SafeFormatDict(
+                        target=target or "{target}",
+                        port="443",
+                        ports="80,443",
+                        user="{user}",
+                        pass_="{pass}",
+                    ))
+                    if target:
+                        snippet = snippet.replace("{target}", target)
+                    if any(p in snippet for p in ("{target}", "{user}", "{pass}")):
+                        continue
+                    next_candidates.append((alt_tool, "bash", ["-c", snippet]))
+            candidates = next_candidates
+
+        return None

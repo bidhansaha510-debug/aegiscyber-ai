@@ -1,0 +1,51 @@
+name: sslscan
+description: SSL/TLS scanner for ciphers, protocols, and certificate analysis
+category:
+- NETWORK_RECON
+- VULNERABILITY_ASSESSMENT
+binary: sslscan
+execution_backend:
+- wsl2
+- docker
+documentation: https://github.com/rbsec/sslscan
+capabilities:
+- ssl_scanning
+- cipher_enumeration
+- certificate_analysis
+- protocol_detection
+input_types:
+- domain
+- ip_address
+- url
+output_types:
+- ssl_info
+- ciphers
+- certificates
+arguments:
+- name: show_certificate
+  flag: --show-certificate
+  description: Show full cert details
+  arg_type: boolean
+  required: false
+- name: no_color
+  flag: --no-colour
+  description: Disable colors
+  arg_type: boolean
+  required: false
+required_arguments: []
+optional_arguments:
+- show_certificate
+danger_level: SAFE
+allowed_modes:
+- passive
+- active
+examples:
+- description: Full SSL scan
+  command: sslscan --show-certificate {target}
+  expected_output: SSL/TLS analysis
+  risk_level: SAFE
+expected_output_patterns: []
+error_patterns: []
+parser: generic
+default_timeout: 0
+requires_root: false

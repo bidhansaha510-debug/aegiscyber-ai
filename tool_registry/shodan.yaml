@@ -1,0 +1,57 @@
+name: shodan
+description: Shodan CLI for searching the internet of things, exposed services, and
+  vulnerabilities
+category:
+- OSINT
+- NETWORK_RECON
+binary: shodan
+execution_backend:
+- wsl2
+- docker
+- native
+documentation: https://cli.shodan.io/
+capabilities:
+- host_search
+- vulnerability_lookup
+- passive_recon
+input_types:
+- domain
+- ip_address
+- query
+output_types:
+- hosts
+- services
+- vulnerabilities
+arguments:
+- name: host
+  flag: host
+  description: Host lookup
+  arg_type: string
+  required: false
+- name: search
+  flag: search
+  description: Search query
+  arg_type: string
+  required: false
+- name: count
+  flag: count
+  description: Count results
+  arg_type: string
+  required: false
+required_arguments: []
+optional_arguments:
+- host
+- search
+danger_level: SAFE
+allowed_modes:
+- passive
+examples:
+- description: Host lookup
+  command: shodan host {target}
+  expected_output: Host info and open ports
+  risk_level: SAFE
+expected_output_patterns: []
+error_patterns: []
+parser: generic
+default_timeout: 0
+requires_root: false

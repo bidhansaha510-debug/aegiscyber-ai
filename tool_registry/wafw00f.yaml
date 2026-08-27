@@ -1,0 +1,50 @@
+name: wafw00f
+description: Web Application Firewall detection and fingerprinting tool
+category:
+- WEB_RECON
+- SERVICE_ENUMERATION
+binary: wafw00f
+execution_backend:
+- wsl2
+- docker
+documentation: https://github.com/EnableSecurity/wafw00f
+capabilities:
+- waf_detection
+- waf_fingerprinting
+input_types:
+- url
+- domain
+output_types:
+- waf_info
+arguments:
+- name: all_waf
+  flag: -a
+  description: Test all WAF signatures
+  arg_type: boolean
+  required: false
+- name: verbose
+  flag: -v
+  description: Verbose
+  arg_type: boolean
+  required: false
+required_arguments: []
+optional_arguments:
+- all_waf
+- verbose
+danger_level: SAFE
+allowed_modes:
+- passive
+- active
+examples:
+- description: Detect WAF
+  command: wafw00f -a {target}
+  expected_output: WAF type
+  risk_level: SAFE
+expected_output_patterns:
+- name: waf_found
+  pattern: is behind (.+) WAF
+  description: WAF detected
+error_patterns: []
+parser: generic
+default_timeout: 0
+requires_root: false

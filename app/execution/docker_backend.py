@@ -2,6 +2,10 @@
 
 import asyncio
 import os
+import shutil
+import subprocess
+import sys
+from pathlib import Path
 from typing import Any, AsyncGenerator
 
 from app.execution.models import CommandPlan, ExecutionStatus, ExecutionUpdate
@@ -18,6 +22,7 @@ class DockerBackend:
         self._max_output_size = max_output_size
         self._is_available: bool | None = None
         self._active_containers: set[str] = set()
+        self._start_attempted: bool = False
 
     async def check_available(self, force: bool = False) -> bool:
         if self._is_available is not None and not force:
@@ -29,14 +34,80 @@ class DockerBackend:
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            _, _ = await asyncio.wait_for(proc.communicate(), timeout=10)
+            _, stderr = await asyncio.wait_for(proc.communicate(), timeout=10)
             self._is_available = proc.returncode == 0
+            if not self._is_available:
+                detail = stderr.decode("utf-8", errors="replace").strip().splitlines()
+                reason = detail[0] if detail else f"exit code {proc.returncode}"
+                logger.warning("Docker daemon not reachable: %s", reason[:200])
+                if self._should_autostart():
+                    self._try_start_daemon()
         except Exception as e:
             logger.warning("Docker check failed: %s", e)
             self._is_available = False
 
         logger.info("Docker backend: %s", "available" if self._is_available else "unavailable")
         return self._is_available
+
+    def _should_autostart(self) -> bool:
+        if self._start_attempted:
+            return False
+        try:
+            from app.config import get_config
+            config = get_config()
+            return config.execution.enable_docker and config.execution.auto_start_docker
+        except Exception:
+            return False
+
+    def _find_docker_desktop_exe(self) -> str | None:
+        candidates: list[Path] = [Path("C:/Program Files/Docker/Docker/Docker Desktop.exe")]
+        docker_path = shutil.which("docker")
+        if docker_path:
+            for ancestor in list(Path(docker_path).resolve().parents)[:4]:
+                candidates.append(ancestor / "Docker Desktop.exe")
+        for candidate in candidates:
+            if candidate.is_file():
+                return str(candidate)
+        return None
+
+    def _try_start_daemon(self) -> None:
+        self._start_attempted = True
+
+        if sys.platform == "win32":
+            exe = self._find_docker_desktop_exe()
+            if not exe:
+                logger.warning("Docker Desktop executable not found — cannot auto-start the daemon")
+                return
+            try:
+                subprocess.Popen(
+                    [exe],
+                    creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP,
+                    close_fds=True,
+                )
+            except Exception as e:
+                logger.warning("Failed to launch Docker Desktop: %s", e)
+                return
+        elif sys.platform == "darwin":
+            try:
+                subprocess.Popen(["open", "-a", "Docker"])
+            except Exception as e:
+                logger.warning("Failed to launch Docker.app: %s", e)
+                return
+        else:
+            try:
+                subprocess.Popen(
+                    ["systemctl", "--user", "start", "docker"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+            except Exception as e:
+                logger.warning("Failed to start docker service: %s", e)
+                return
+
+        logger.info(
+            "Docker daemon not running — Docker Desktop launched automatically; "
+            "the backend should become available within a minute"
+        )
 
     async def check_tool_exists(self, executable: str) -> tuple[bool, str]:
         if not await self.check_available():

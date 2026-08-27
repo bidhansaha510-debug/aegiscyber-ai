@@ -1,0 +1,55 @@
+name: massdns
+description: High-performance DNS stub resolver for bulk lookups and subdomain enumeration
+category:
+- DNS
+- SUBDOMAIN_DISCOVERY
+binary: massdns
+execution_backend:
+- wsl2
+- docker
+documentation: https://github.com/blechschmidt/massdns
+capabilities:
+- bulk_dns_resolution
+- subdomain_enumeration
+input_types:
+- domain
+- file
+output_types:
+- dns_records
+- subdomains
+arguments:
+- name: resolvers
+  flag: -r
+  description: Resolver list
+  arg_type: file_path
+  required: true
+- name: type
+  flag: -t
+  description: Record type
+  arg_type: string
+  required: false
+  default: A
+- name: output
+  flag: -o
+  description: Output format (S=simple)
+  arg_type: string
+  required: false
+  default: S
+required_arguments:
+- resolvers
+optional_arguments:
+- type
+- output
+danger_level: SAFE
+allowed_modes:
+- passive
+examples:
+- description: Bulk resolve
+  command: massdns -r resolvers.txt -t A -o S subdomains.txt
+  expected_output: Resolved records
+  risk_level: SAFE
+expected_output_patterns: []
+error_patterns: []
+parser: generic
+default_timeout: 0
+requires_root: false

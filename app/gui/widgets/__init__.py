@@ -6,6 +6,7 @@ from .status_bar import StatusBarWidget
 from .kill_switch import KillSwitchButton
 from .scope_dialog import ScopeDialog
 from .approval_dialog import ApprovalDialog
+from .sandbox_window import SandboxAttackWindow
 
 __all__ = [
     "ChatWidget", "ChatInputWidget", "ChatMessage",
@@ -14,4 +15,5 @@ __all__ = [
     "KillSwitchButton",
     "ScopeDialog",
     "ApprovalDialog",
+    "SandboxAttackWindow",
 ]

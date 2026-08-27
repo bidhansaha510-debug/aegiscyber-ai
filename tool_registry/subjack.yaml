@@ -1,0 +1,57 @@
+name: subjack
+description: Subdomain takeover vulnerability scanner
+category:
+- VULNERABILITY_ASSESSMENT
+- SUBDOMAIN_DISCOVERY
+binary: subjack
+execution_backend:
+- wsl2
+- docker
+documentation: https://github.com/haccer/subjack
+capabilities:
+- subdomain_takeover_detection
+input_types:
+- file
+- domain
+output_types:
+- vulnerabilities
+arguments:
+- name: wordlist
+  flag: -w
+  description: Subdomain list file
+  arg_type: file_path
+  required: true
+- name: threads
+  flag: -t
+  description: Threads
+  arg_type: integer
+  required: false
+  default: 100
+- name: ssl
+  flag: -ssl
+  description: Force HTTPS
+  arg_type: boolean
+  required: false
+- name: output
+  flag: -o
+  description: Output file
+  arg_type: file_path
+  required: false
+required_arguments:
+- wordlist
+optional_arguments:
+- threads
+- ssl
+danger_level: MEDIUM_RISK
+allowed_modes:
+- active
+examples:
+- description: Check takeover
+  command: subjack -w subdomains.txt -t 100 -ssl
+  expected_output: Takeover vulnerabilities
+  risk_level: MEDIUM_RISK
+expected_output_patterns: []
+error_patterns: []
+parser: generic
+default_timeout: 0
+requires_root: false

@@ -1,0 +1,56 @@
+name: wfuzz
+description: Web application fuzzer for brute-forcing parameters, directories, and
+  forms
+category:
+- WEB_RECON
+- VULNERABILITY_ASSESSMENT
+binary: wfuzz
+execution_backend:
+- wsl2
+- docker
+documentation: https://wfuzz.readthedocs.io/
+capabilities:
+- web_fuzzing
+- parameter_bruteforce
+- directory_bruteforce
+input_types:
+- url
+output_types:
+- urls
+- responses
+arguments:
+- name: wordlist
+  flag: -w
+  description: Wordlist
+  arg_type: file_path
+  required: true
+- name: hide_code
+  flag: --hc
+  description: Hide response codes
+  arg_type: string
+  required: false
+  default: '404'
+- name: threads
+  flag: -t
+  description: Threads
+  arg_type: integer
+  required: false
+  default: 10
+required_arguments:
+- wordlist
+optional_arguments:
+- hide_code
+- threads
+danger_level: MEDIUM_RISK
+allowed_modes:
+- active
+examples:
+- description: Dir fuzzing
+  command: wfuzz -w /usr/share/wordlists/dirb/common.txt --hc 404 {target}/FUZZ
+  expected_output: Valid paths
+  risk_level: MEDIUM_RISK
+expected_output_patterns: []
+error_patterns: []
+parser: generic
+default_timeout: 0
+requires_root: false

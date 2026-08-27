@@ -1,0 +1,40 @@
+name: assetfinder
+description: Find domains and subdomains passively from various sources
+category:
+- SUBDOMAIN_DISCOVERY
+- OSINT
+binary: assetfinder
+execution_backend:
+- wsl2
+- docker
+documentation: https://github.com/tomnomnom/assetfinder
+capabilities:
+- subdomain_enumeration
+- passive_recon
+input_types:
+- domain
+output_types:
+- subdomains
+- domains
+arguments:
+- name: subs_only
+  flag: --subs-only
+  description: Only subdomains
+  arg_type: boolean
+  required: false
+required_arguments: []
+optional_arguments:
+- subs_only
+danger_level: SAFE
+allowed_modes:
+- passive
+examples:
+- description: Find subdomains
+  command: assetfinder --subs-only {target}
+  expected_output: Subdomains
+  risk_level: SAFE
+expected_output_patterns: []
+error_patterns: []
+parser: generic
+default_timeout: 0
+requires_root: false

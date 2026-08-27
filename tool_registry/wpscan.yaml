@@ -1,0 +1,82 @@
+﻿name: wpscan
+description: WordPress security scanner that checks for vulnerable plugins, themes, and core WordPress vulnerabilities
+category:
+  - WEB_RECON
+  - VULNERABILITY_ASSESSMENT
+binary: wpscan
+execution_backend:
+  - wsl2
+  - docker
+documentation: https://wpscan.com/
+capabilities:
+  - wordpress_scanning
+  - plugin_enumeration
+  - theme_enumeration
+  - user_enumeration
+  - vulnerability_detection
+input_types:
+  - url
+output_types:
+  - vulnerabilities
+  - plugins
+  - themes
+  - users
+arguments:
+  - name: url
+    flag: "--url"
+    description: Target WordPress URL
+    arg_type: string
+    required: true
+  - name: enumerate
+    flag: "-e"
+    description: Enumerate (vp=vulnerable plugins, ap=all plugins, u=users, t=themes)
+    arg_type: string
+    required: false
+    default: "vp,vt,u"
+  - name: api_token
+    flag: "--api-token"
+    description: WPScan API token for vulnerability data
+    arg_type: string
+    required: false
+  - name: force
+    flag: "--force"
+    description: Do not check if target is WordPress
+    arg_type: boolean
+    required: false
+  - name: disable_tls
+    flag: "--disable-tls-checks"
+    description: Disable TLS certificate verification
+    arg_type: boolean
+    required: false
+  - name: random_user_agent
+    flag: "--random-user-agent"
+    description: Use a random user agent
+    arg_type: boolean
+    required: false
+required_arguments:
+  - url
+optional_arguments:
+  - enumerate
+  - api_token
+danger_level: MEDIUM_RISK
+allowed_modes:
+  - active
+examples:
+  - description: Full WordPress enumeration
+    command: "wpscan --url {target} -e vp,vt,u --random-user-agent"
+    expected_output: WordPress version, plugins, themes, users, vulnerabilities
+    risk_level: MEDIUM_RISK
+expected_output_patterns:
+  - name: vulnerability
+    pattern: 'Title: (.+)'
+    description: Matches vulnerability titles
+  - name: plugin
+    pattern: '\[!\] (.+)'
+    description: Matches plugin findings
+error_patterns:
+  - name: not_wordpress
+    pattern: "does not seem to be running WordPress"
+    description: Target is not a WordPress site
+parser: generic
+default_timeout: 0
+requires_root: false

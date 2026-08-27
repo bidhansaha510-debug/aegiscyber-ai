@@ -1,0 +1,54 @@
+name: smbclient
+description: SMB/CIFS client for share access and file transfers
+category:
+- SERVICE_ENUMERATION
+- NETWORK_RECON
+binary: smbclient
+execution_backend:
+- wsl2
+- docker
+documentation: https://www.samba.org/
+capabilities:
+- smb_enumeration
+- file_transfer
+- share_listing
+input_types:
+- ip_address
+- hostname
+output_types:
+- shares
+- files
+arguments:
+- name: list
+  flag: -L
+  description: List shares
+  arg_type: string
+  required: false
+- name: no_pass
+  flag: -N
+  description: No password
+  arg_type: boolean
+  required: false
+- name: user
+  flag: -U
+  description: Username
+  arg_type: string
+  required: false
+required_arguments: []
+optional_arguments:
+- list
+- no_pass
+- user
+danger_level: MEDIUM_RISK
+allowed_modes:
+- active
+examples:
+- description: List shares
+  command: smbclient -L {target} -N
+  expected_output: Available shares
+  risk_level: MEDIUM_RISK
+expected_output_patterns: []
+error_patterns: []
+parser: generic
+default_timeout: 0
+requires_root: false

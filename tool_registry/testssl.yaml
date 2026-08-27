@@ -1,0 +1,51 @@
+name: testssl
+description: Command-line tool for TLS/SSL cipher, protocol, and vulnerability testing
+  on any port
+category:
+- NETWORK_RECON
+- VULNERABILITY_ASSESSMENT
+binary: testssl.sh
+execution_backend:
+- wsl2
+- docker
+documentation: https://testssl.sh/
+capabilities:
+- ssl_scanning
+- vulnerability_detection
+- cipher_enumeration
+input_types:
+- domain
+- ip_address
+- url
+output_types:
+- ssl_info
+- vulnerabilities
+arguments:
+- name: fast
+  flag: --fast
+  description: Skip slow checks
+  arg_type: boolean
+  required: false
+- name: json
+  flag: --jsonfile
+  description: JSON output file
+  arg_type: file_path
+  required: false
+required_arguments: []
+optional_arguments:
+- fast
+- json
+danger_level: SAFE
+allowed_modes:
+- passive
+- active
+examples:
+- description: Full TLS scan
+  command: testssl.sh --fast {target}
+  expected_output: TLS analysis
+  risk_level: SAFE
+expected_output_patterns: []
+error_patterns: []
+parser: generic
+default_timeout: 0
+requires_root: false

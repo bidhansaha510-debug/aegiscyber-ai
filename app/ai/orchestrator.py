@@ -102,6 +102,7 @@ class Orchestrator:
         self._approval_response: bool | None = None
         self._command_started_callbacks: list[Callable] = []
         self._command_finished_callbacks: list[Callable] = []
+        self._command_result_callbacks: list[Callable] = []
 
     @property
     def state(self) -> OrchestratorState:
@@ -119,6 +120,9 @@ class Orchestrator:
 
     def on_command_finished(self, callback: Callable) -> None:
         self._command_finished_callbacks.append(callback)
+
+    def on_command_result(self, callback: Callable) -> None:
+        self._command_result_callbacks.append(callback)
 
     def on_poc_generated(self, callback: Callable) -> None:
         self._poc_callbacks.append(callback)
@@ -197,6 +201,13 @@ class Orchestrator:
                 cb(tool, success, duration)
             except Exception as e:
                 logger.error("Command finished callback error: %s", e)
+
+    def _emit_command_result(self, result: dict) -> None:
+        for cb in self._command_result_callbacks:
+            try:
+                cb(result)
+            except Exception as e:
+                logger.error("Command result callback error: %s", e)
 
     def set_approval_handler(self, handler: Callable) -> None:
         self._on_approval_required = handler
@@ -311,15 +322,41 @@ class Orchestrator:
                             f"OPSEC Score: {opsec_score.total_score}/100 ({opsec_score.risk_label})",
                         )
                         if self._opsec_engine.should_block_in_stealth(opsec_score):
-                            self._update_reasoning(
-                                f"OPSEC: {tool_selection.tool_name}",
-                                "blocked",
-                                f"OPSEC score {opsec_score.total_score} exceeds stealth threshold",
+                            fallback = self._opsec_engine.resolve_stealth_fallback(
+                                tool_selection.command_plan.executable,
+                                tool_selection.command_plan.arguments,
+                                plan.target,
                             )
-                            blocked_reasons.append(
-                                f"OPSEC: {tool_selection.tool_name} blocked (score: {opsec_score.total_score})"
-                            )
-                            continue
+                            if fallback:
+                                original_tool = tool_selection.tool_name
+                                alt_exec, alt_args = fallback
+                                alt_score = self._opsec_engine.evaluate_command(alt_exec, alt_args, plan.target)
+                                tool_selection.tool_name = alt_exec
+                                tool_selection.command_plan = CommandPlan(
+                                    executable=alt_exec,
+                                    arguments=alt_args,
+                                    target=plan.target,
+                                    timeout=tool_selection.command_plan.timeout,
+                                    backend="wsl2",
+                                    explanation=f"Stealth fallback replacing {original_tool}",
+                                    risk_level="LOW_RISK",
+                                )
+                                self._update_reasoning(
+                                    f"OPSEC: {alt_exec}",
+                                    "complete",
+                                    f"Switched from {original_tool} (OPSEC {opsec_score.total_score}) "
+                                    f"to {alt_exec} (OPSEC {alt_score.total_score})",
+                                )
+                            else:
+                                self._update_reasoning(
+                                    f"OPSEC: {tool_selection.tool_name}",
+                                    "blocked",
+                                    f"OPSEC score {opsec_score.total_score} exceeds stealth threshold",
+                                )
+                                blocked_reasons.append(
+                                    f"OPSEC: {tool_selection.tool_name} blocked (score: {opsec_score.total_score})"
+                                )
+                                continue
                         self._update_reasoning(
                             f"OPSEC: {tool_selection.tool_name}",
                             "complete",
@@ -393,6 +430,11 @@ class Orchestrator:
                         exec_result.status == ExecutionStatus.COMPLETED,
                         exec_result.duration_seconds,
                     )
+
+                    result_payload = exec_result.model_dump()
+                    result_payload["status"] = exec_result.status.value
+                    result_payload["target"] = plan.target
+                    self._emit_command_result(result_payload)
 
                     self._memory.tool_memory.record_execution(
                         tool_selection.tool_name,

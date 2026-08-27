@@ -1,0 +1,51 @@
+name: censys
+description: Censys CLI for searching internet-wide scan data and certificate transparency
+  logs
+category:
+- OSINT
+- NETWORK_RECON
+binary: censys
+execution_backend:
+- wsl2
+- docker
+- native
+documentation: https://github.com/censys/censys-python
+capabilities:
+- host_search
+- certificate_search
+- passive_recon
+input_types:
+- domain
+- ip_address
+- query
+output_types:
+- hosts
+- certificates
+arguments:
+- name: subcommand
+  flag: ''
+  description: Subcommand (search, view)
+  arg_type: string
+  required: true
+- name: query
+  flag: ''
+  description: Search query
+  arg_type: string
+  required: false
+required_arguments:
+- subcommand
+optional_arguments:
+- query
+danger_level: SAFE
+allowed_modes:
+- passive
+examples:
+- description: Host search
+  command: censys search {target}
+  expected_output: Host data
+  risk_level: SAFE
+expected_output_patterns: []
+error_patterns: []
+parser: generic
+default_timeout: 0
+requires_root: false

@@ -1,0 +1,70 @@
+name: netexec
+description: Network execution tool (CrackMapExec successor) for SMB, WinRM, LDAP,
+  MSSQL, SSH
+category:
+- SERVICE_ENUMERATION
+- NETWORK_RECON
+- PASSWORD_AUDITING
+binary: netexec
+execution_backend:
+- wsl2
+- docker
+documentation: https://github.com/Pennyw0rth/NetExec
+capabilities:
+- smb_enumeration
+- ldap_enumeration
+- credential_validation
+- share_enumeration
+input_types:
+- ip_address
+- ip_range
+- hostname
+output_types:
+- users
+- shares
+- credentials
+arguments:
+- name: protocol
+  flag: ''
+  description: Protocol (smb, winrm, ldap, mssql, ssh)
+  arg_type: string
+  required: true
+- name: username
+  flag: -u
+  description: Username
+  arg_type: string
+  required: false
+- name: password
+  flag: -p
+  description: Password
+  arg_type: string
+  required: false
+- name: shares
+  flag: --shares
+  description: Enumerate shares
+  arg_type: boolean
+  required: false
+- name: users
+  flag: --users
+  description: Enumerate users
+  arg_type: boolean
+  required: false
+required_arguments:
+- protocol
+optional_arguments:
+- username
+- password
+- shares
+danger_level: HIGH_RISK
+allowed_modes:
+- active
+examples:
+- description: SMB enum
+  command: netexec smb {target} --shares
+  expected_output: Shares listing
+  risk_level: HIGH_RISK
+expected_output_patterns: []
+error_patterns: []
+parser: generic
+default_timeout: 0
+requires_root: false

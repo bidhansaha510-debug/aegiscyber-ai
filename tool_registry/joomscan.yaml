@@ -1,0 +1,48 @@
+name: joomscan
+description: Joomla vulnerability scanner for detecting security issues in Joomla
+  CMS
+category:
+- WEB_RECON
+- VULNERABILITY_ASSESSMENT
+binary: joomscan
+execution_backend:
+- wsl2
+- docker
+documentation: https://github.com/OWASP/joomscan
+capabilities:
+- joomla_scanning
+- vulnerability_detection
+- component_enumeration
+input_types:
+- url
+output_types:
+- vulnerabilities
+- components
+arguments:
+- name: url
+  flag: -u
+  description: Target URL
+  arg_type: string
+  required: true
+- name: enumerate
+  flag: -ec
+  description: Enumerate components
+  arg_type: boolean
+  required: false
+required_arguments:
+- url
+optional_arguments:
+- enumerate
+danger_level: MEDIUM_RISK
+allowed_modes:
+- active
+examples:
+- description: Joomla scan
+  command: joomscan -u {target} -ec
+  expected_output: Joomla vulnerabilities
+  risk_level: MEDIUM_RISK
+expected_output_patterns: []
+error_patterns: []
+parser: generic
+default_timeout: 0
+requires_root: false

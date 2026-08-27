@@ -1,0 +1,56 @@
+name: trufflehog
+description: Searches for leaked secrets, passwords, and API keys in Git repositories
+  and filesystem
+category:
+- OSINT
+- VULNERABILITY_ASSESSMENT
+binary: trufflehog
+execution_backend:
+- wsl2
+- docker
+- native
+documentation: https://github.com/trufflesecurity/trufflehog
+capabilities:
+- secret_detection
+- credential_scanning
+- git_history_scanning
+input_types:
+- url
+- file
+output_types:
+- secrets
+- credentials
+arguments:
+- name: source
+  flag: ''
+  description: Source type (git, github, filesystem)
+  arg_type: string
+  required: true
+- name: json
+  flag: --json
+  description: JSON output
+  arg_type: boolean
+  required: false
+- name: concurrency
+  flag: --concurrency
+  description: Concurrency
+  arg_type: integer
+  required: false
+required_arguments:
+- source
+optional_arguments:
+- json
+- concurrency
+danger_level: SAFE
+allowed_modes:
+- passive
+examples:
+- description: Scan git repo
+  command: trufflehog git {target} --json
+  expected_output: Leaked secrets
+  risk_level: SAFE
+expected_output_patterns: []
+error_patterns: []
+parser: generic
+default_timeout: 0
+requires_root: false

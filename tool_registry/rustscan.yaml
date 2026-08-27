@@ -1,0 +1,69 @@
+name: rustscan
+description: Fast port scanner that automatically pipes results into nmap for service
+  detection
+category:
+- PORT_SCANNING
+- NETWORK_RECON
+binary: rustscan
+execution_backend:
+- wsl2
+- docker
+documentation: https://github.com/RustScan/RustScan
+capabilities:
+- fast_port_scanning
+- nmap_integration
+- host_discovery
+input_types:
+- ip_address
+- ip_range
+- domain
+output_types:
+- open_ports
+- services
+arguments:
+- name: addresses
+  flag: -a
+  description: Target addresses
+  arg_type: string
+  required: true
+- name: ports
+  flag: -p
+  description: Ports to scan
+  arg_type: port_range
+  required: false
+- name: batch_size
+  flag: -b
+  description: Batch size
+  arg_type: integer
+  required: false
+  default: 4500
+- name: ulimit
+  flag: --ulimit
+  description: Max file descriptors
+  arg_type: integer
+  required: false
+  default: 5000
+required_arguments:
+- addresses
+optional_arguments:
+- ports
+- batch_size
+danger_level: MEDIUM_RISK
+allowed_modes:
+- active
+examples:
+- description: Fast scan all ports
+  command: rustscan -a {target} --ulimit 5000
+  expected_output: Open ports list
+  risk_level: MEDIUM_RISK
+expected_output_patterns:
+- name: open_port
+  pattern: Open (.+):(\d+)
+  description: Open port found
+error_patterns:
+- name: host_down
+  pattern: Could not resolve
+  description: Target unreachable
+parser: generic
+default_timeout: 0
+requires_root: false

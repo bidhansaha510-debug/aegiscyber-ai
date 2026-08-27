@@ -1,0 +1,46 @@
+name: arp-scan
+description: ARP scanning and fingerprinting tool for local network host discovery
+category:
+- NETWORK_RECON
+binary: arp-scan
+execution_backend:
+- wsl2
+- docker
+documentation: https://github.com/royhills/arp-scan
+capabilities:
+- host_discovery
+- mac_address_detection
+- vendor_identification
+input_types:
+- ip_range
+output_types:
+- hosts
+- mac_addresses
+arguments:
+- name: localnet
+  flag: -l
+  description: Scan local network
+  arg_type: boolean
+  required: false
+- name: interface
+  flag: -I
+  description: Interface
+  arg_type: string
+  required: false
+required_arguments: []
+optional_arguments:
+- localnet
+- interface
+danger_level: LOW_RISK
+allowed_modes:
+- active
+examples:
+- description: Local ARP scan
+  command: arp-scan -l
+  expected_output: IP, MAC, vendor
+  risk_level: LOW_RISK
+expected_output_patterns: []
+error_patterns: []
+parser: generic
+default_timeout: 0
+requires_root: true

@@ -1,0 +1,51 @@
+name: dalfox
+description: Fast parameter analysis and XSS scanning tool
+category:
+- VULNERABILITY_ASSESSMENT
+- WEB_RECON
+binary: dalfox
+execution_backend:
+- wsl2
+- docker
+documentation: https://github.com/hahwul/dalfox
+capabilities:
+- xss_detection
+- parameter_analysis
+input_types:
+- url
+output_types:
+- vulnerabilities
+arguments:
+- name: url
+  flag: url
+  description: Target URL
+  arg_type: string
+  required: true
+- name: blind
+  flag: -b
+  description: Blind XSS callback
+  arg_type: string
+  required: false
+- name: output
+  flag: -o
+  description: Output file
+  arg_type: file_path
+  required: false
+required_arguments:
+- url
+optional_arguments:
+- blind
+- output
+danger_level: HIGH_RISK
+allowed_modes:
+- active
+examples:
+- description: XSS scan
+  command: dalfox url {target}
+  expected_output: XSS findings
+  risk_level: HIGH_RISK
+expected_output_patterns: []
+error_patterns: []
+parser: generic
+default_timeout: 0
+requires_root: false

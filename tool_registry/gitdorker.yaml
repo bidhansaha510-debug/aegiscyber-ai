@@ -1,0 +1,54 @@
+name: gitdorker
+description: GitHub dorking tool for finding sensitive data exposed in public repositories
+category:
+- OSINT
+- VULNERABILITY_ASSESSMENT
+binary: gitdorker
+execution_backend:
+- wsl2
+- docker
+documentation: https://github.com/obheda12/GitDorker
+capabilities:
+- github_dorking
+- secret_detection
+- code_search
+input_types:
+- domain
+- query
+output_types:
+- urls
+- secrets
+arguments:
+- name: query
+  flag: -q
+  description: Search query
+  arg_type: string
+  required: true
+- name: token
+  flag: -tf
+  description: GitHub token file
+  arg_type: file_path
+  required: false
+- name: dorks
+  flag: -d
+  description: Dorks file
+  arg_type: file_path
+  required: false
+required_arguments:
+- query
+optional_arguments:
+- token
+- dorks
+danger_level: SAFE
+allowed_modes:
+- passive
+examples:
+- description: GitHub dork
+  command: gitdorker -q {target}
+  expected_output: Exposed data
+  risk_level: SAFE
+expected_output_patterns: []
+error_patterns: []
+parser: generic
+default_timeout: 0
+requires_root: false

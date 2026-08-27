@@ -1,0 +1,47 @@
+name: httprobe
+description: Take a list of domains and probe for working HTTP/HTTPS servers
+category:
+- WEB_RECON
+- SERVICE_ENUMERATION
+binary: httprobe
+execution_backend:
+- wsl2
+- docker
+documentation: https://github.com/tomnomnom/httprobe
+capabilities:
+- http_probing
+- alive_detection
+input_types:
+- domain
+- file
+output_types:
+- urls
+arguments:
+- name: concurrency
+  flag: -c
+  description: Concurrency
+  arg_type: integer
+  required: false
+  default: 20
+- name: prefer_https
+  flag: -prefer-https
+  description: Prefer HTTPS
+  arg_type: boolean
+  required: false
+required_arguments: []
+optional_arguments:
+- concurrency
+- prefer_https
+danger_level: SAFE
+allowed_modes:
+- passive
+examples:
+- description: Probe hosts
+  command: cat subs.txt | httprobe
+  expected_output: Live URLs
+  risk_level: SAFE
+expected_output_patterns: []
+error_patterns: []
+parser: generic
+default_timeout: 0
+requires_root: false
