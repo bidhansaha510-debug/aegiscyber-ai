@@ -14,9 +14,15 @@ logger = get_logger("execution.wsl_backend")
 class WSLBackend:
     BACKEND_NAME = "wsl2"
 
-    def __init__(self, distro: str = "kali-linux", max_output_size: int = 10 * 1024 * 1024) -> None:
+    def __init__(
+        self,
+        distro: str = "kali-linux",
+        max_output_size: int = 10 * 1024 * 1024,
+        default_timeout: int = 300,
+    ) -> None:
         self._distro = distro
         self._max_output_size = max_output_size
+        self._default_timeout = default_timeout if default_timeout and default_timeout > 0 else 0
         self._is_available: bool | None = None
 
     async def check_available(self) -> bool:
@@ -127,8 +133,25 @@ class WSLBackend:
             stdout_chunks: list[str] = []
             stderr_chunks: list[str] = []
 
+            try:
+                timeout = int(getattr(command_plan, "timeout", 0) or 0)
+            except (TypeError, ValueError):
+                timeout = 0
+            if timeout <= 0:
+                timeout = self._default_timeout
+            deadline = time.monotonic() + timeout if timeout > 0 else None
+
             while True:
-                item = await queue.get()
+                if deadline is None:
+                    item = await queue.get()
+                else:
+                    remaining = deadline - time.monotonic()
+                    if deadline is not None and remaining <= 0:
+                        raise asyncio.TimeoutError()
+                    try:
+                        item = await asyncio.wait_for(queue.get(), timeout=max(remaining, 0.05))
+                    except asyncio.TimeoutError:
+                        raise asyncio.TimeoutError from None
 
                 if item is None:
                     break
@@ -157,6 +180,29 @@ class WSLBackend:
                 stdout_chunk="".join(stdout_chunks),
                 stderr_chunk="".join(stderr_chunks),
                 exit_code=proc.returncode,
+            )
+
+        except asyncio.TimeoutError:
+            logger.warning(
+                "Execution %s timed out after %ss: %s",
+                execution_id,
+                timeout,
+                cmd_string[:200],
+            )
+            try:
+                proc.kill()
+            except ProcessLookupError:
+                pass
+            try:
+                await proc.wait()
+            except Exception:
+                pass
+            yield ExecutionUpdate(
+                execution_id=execution_id,
+                status=ExecutionStatus.TIMEOUT,
+                stdout_chunk="".join(stdout_chunks),
+                stderr_chunk="".join(stderr_chunks) + f"\n[timeout] command exceeded {timeout}s and was killed",
+                exit_code=-9,
             )
 
         except Exception as e:

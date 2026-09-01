@@ -48,6 +48,14 @@ DANGEROUS_ARGUMENT_PATTERNS = [
     (re.compile(r"\bchmod\s+\+s\b", re.IGNORECASE), "SUID bit modification blocked"),
 ]
 
+# Patterns exempted in weapon mode: these restrictions exist to prevent
+# exploitation-adjacent behavior, which is exactly what weapon mode performs
+# against in-scope targets. Host-safety patterns (rm -rf, pipe-to-shell,
+# chmod SUID on the operator's own backend) remain enforced in all modes.
+WEAPON_EXEMPT_ARGUMENT_PATTERNS = [
+    "Exploit scripts blocked",
+]
+
 SAFE_EXECUTABLES = {
     "dig", "nslookup", "host",
     "whois",
@@ -63,6 +71,16 @@ class PolicyEngine:
         self._config = get_config()
         self._custom_blocked: set[str] = set()
         self._custom_allowed: set[str] = set()
+        self._weapon_mode: bool = False
+
+    @property
+    def weapon_mode(self) -> bool:
+        return self._weapon_mode
+
+    @weapon_mode.setter
+    def weapon_mode(self, value: bool) -> None:
+        self._weapon_mode = value
+        logger.info("PolicyEngine weapon mode: %s", "ON" if value else "OFF")
 
     def evaluate(
         self,
@@ -105,6 +123,15 @@ class PolicyEngine:
 
         requires_approval = False
         allowed = True
+
+        if self._weapon_mode and self._config.weapon.auto_approve_all_risk:
+            return PolicyDecision(
+                allowed=True,
+                risk=risk.value,
+                reason=f"WEAPON MODE: auto-approved {risk.value} operation",
+                requires_approval=False,
+                warnings=warnings,
+            )
 
         if risk == RiskLevel.SAFE:
             allowed = True
@@ -165,6 +192,8 @@ class PolicyEngine:
         issues = []
         for pattern, message in DANGEROUS_ARGUMENT_PATTERNS:
             if pattern.search(full_command):
+                if self._weapon_mode and message in WEAPON_EXEMPT_ARGUMENT_PATTERNS:
+                    continue
                 issues.append(message)
         return issues
 

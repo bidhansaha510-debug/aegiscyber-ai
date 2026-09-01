@@ -62,6 +62,9 @@ class OllamaConfig(BaseSettings):
     host: str = "http://localhost:11434"
     model: str = "llama3:latest"
     embedding_model: str = "nomic-embed-text"
+    # Optional dedicated model for exploit/code generation (falls back to
+    # `model` when empty). Recommended: qwen2.5-coder:7b or deepseek-coder:6.7b.
+    codegen_model: str = ""
     timeout: int = 120
     max_tokens: int = 4096
     temperature: float = 0.1
@@ -108,6 +111,43 @@ class StealthConfig(BaseSettings):
     respect_business_hours: bool = True
 
 
+class SelfHealConfig(BaseSettings):
+    """Self-healing command execution.
+
+    When a tool command fails (bad syntax, missing binary, timeout, etc.) the
+    orchestrator reads the error output and asks the model to produce a
+    corrected replacement command, then retries. If the failure is caused by a
+    missing tool, the tool is installed automatically into the execution
+    backend (apt on the WSL2 Kali distro) before retrying.
+    """
+    enabled: bool = True
+    max_retries: int = 2
+    auto_install_tools: bool = True
+    install_timeout: int = 300
+
+
+class WeaponConfig(BaseSettings):
+    """Configuration for autonomous weapon mode.
+
+    Weapon mode turns AegisCyber AI from a guided scanning assistant into a
+    full autonomous offensive platform:
+      - Plans the complete kill chain including exploitation phases
+      - Auto-approves every risk level (no interactive approval prompts)
+      - Generates working exploit code for confirmed findings
+      - Saves exploit scripts to disk and executes them through the
+        configured backend (WSL2 Kali) when execute_exploits is enabled
+    All operations remain bound by the authorized target scope and kill switch.
+    """
+    weapon_mode_default: bool = False
+    auto_approve_all_risk: bool = True
+    execute_exploits: bool = True
+    exploit_dir: str = "exploits"
+    exploit_timeout: int = 120
+    max_exploit_executions_per_request: int = 10
+    include_reverse_shell_handlers: bool = True
+    verify_exploitation: bool = True
+
+
 class ModelConfig(BaseSettings):
     specialized_model_path: str = "models/cyber_specialist"
     embedding_dimension: int = 768
@@ -152,6 +192,8 @@ class AppConfig(BaseSettings):
     execution: ExecutionConfig = Field(default_factory=ExecutionConfig)
     security: SecurityConfig = Field(default_factory=SecurityConfig)
     stealth: StealthConfig = Field(default_factory=StealthConfig)
+    selfheal: SelfHealConfig = Field(default_factory=SelfHealConfig)
+    weapon: WeaponConfig = Field(default_factory=WeaponConfig)
     model: ModelConfig = Field(default_factory=ModelConfig)
     database: DatabaseConfig = Field(default_factory=DatabaseConfig)
     api: APIConfig = Field(default_factory=APIConfig)

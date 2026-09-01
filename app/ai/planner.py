@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from app.ai.ollama_client import OllamaClient
 from app.ai.prompts.system_prompts import PLANNER_SYSTEM
 from app.ai.prompts.task_templates import TASK_DECOMPOSITION_TEMPLATE
+from app.ai.json_utils import extract_json, repair_json_with_llm
 from app.logging_config import get_logger
 
 logger = get_logger("ai.planner")
@@ -58,12 +59,14 @@ class Planner:
         scope_constraints: str = "",
         available_backends: str = "",
         available_tools: str = "",
+        system_prompt: str = "",
     ) -> TaskPlan:
         return await self.decompose(
             user_request=user_request,
             scope_info=scope_constraints or context_summary,
             available_backends=available_backends,
             available_tools=available_tools,
+            system_prompt=system_prompt,
         )
 
     async def plan(
@@ -86,6 +89,7 @@ class Planner:
         scope_info: str = "",
         available_backends: str = "",
         available_tools: str = "",
+        system_prompt: str = "",
     ) -> TaskPlan:
         prompt = TASK_DECOMPOSITION_TEMPLATE.format(
             user_request=user_request,
@@ -96,13 +100,20 @@ class Planner:
 
         response = await self._ollama.generate(
             prompt=prompt,
-            system=PLANNER_SYSTEM,
+            system=system_prompt or PLANNER_SYSTEM,
             temperature=0.1,
         )
 
         try:
             json_str = self._extract_json(response)
-            data = json.loads(json_str)
+            try:
+                data = json.loads(json_str)
+            except json.JSONDecodeError as parse_err:
+                logger.warning("Plan JSON parse failed (%s); attempting LLM repair", parse_err)
+                repaired = await repair_json_with_llm(self._ollama, json_str, str(parse_err))
+                if not repaired:
+                    raise
+                data = json.loads(extract_json(repaired))
 
             raw_phases = data.get("phases", [])
             phases: list[TaskPhase] = []

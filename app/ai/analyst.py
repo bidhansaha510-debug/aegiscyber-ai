@@ -54,6 +54,7 @@ class Analyst:
         self,
         all_findings: list[dict[str, Any]],
         target: str = "",
+        system_prompt: str = "",
     ) -> str:
         findings_text = ""
         for finding in all_findings:
@@ -76,7 +77,7 @@ Produce a unified summary covering:
 
         summary = await self._ollama.generate(
             prompt=prompt,
-            system=ANALYST_SYSTEM,
+            system=system_prompt or ANALYST_SYSTEM,
             temperature=0.2,
         )
 

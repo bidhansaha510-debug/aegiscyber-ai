@@ -28,7 +28,11 @@ class ExecutionManager:
     def __init__(self, kill_switch: KillSwitch | None = None) -> None:
         config = get_config()
         self._subprocess_backend = SubprocessBackend(config.execution.max_output_size_bytes)
-        self._wsl_backend = WSLBackend(config.execution.wsl_distro, config.execution.max_output_size_bytes)
+        self._wsl_backend = WSLBackend(
+            config.execution.wsl_distro,
+            config.execution.max_output_size_bytes,
+            default_timeout=config.execution.default_timeout,
+        )
         self._docker_backend = DockerBackend(config.execution.docker_image, config.execution.max_output_size_bytes)
         self._sandbox = ExecutionSandbox(
             max_output_size=config.execution.max_output_size_bytes,

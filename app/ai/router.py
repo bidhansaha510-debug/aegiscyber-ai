@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from app.ai.ollama_client import OllamaClient
 from app.ai.prompts.system_prompts import TOOL_EXPERT_SYSTEM
 from app.ai.prompts.task_templates import TOOL_SELECTION_TEMPLATE
+from app.ai.json_utils import extract_json, repair_json_with_llm
 from app.tools.registry import ToolRegistry
 from app.tools.schemas import ToolScore
 from app.tools.command_planner import CommandPlanner
@@ -124,7 +125,7 @@ class CyberTaskRouter:
             temperature=0.1,
         )
 
-        result = self._parse_routing_result(response, target, scores, all_installed)
+        result = await self._parse_routing_result(response, target, scores, all_installed)
 
         if self._stealth_mode:
             result = self._apply_stealth_scoring(result, target)
@@ -137,7 +138,7 @@ class CyberTaskRouter:
         )
         return result
 
-    def _parse_routing_result(
+    async def _parse_routing_result(
         self,
         response: str,
         target: str,
@@ -149,7 +150,14 @@ class CyberTaskRouter:
 
         try:
             json_str = self._extract_json(response)
-            data = json.loads(json_str)
+            try:
+                data = json.loads(json_str)
+            except json.JSONDecodeError as parse_err:
+                logger.warning("Routing JSON parse failed (%s); attempting LLM repair", parse_err)
+                repaired = await repair_json_with_llm(self._ollama, json_str, str(parse_err))
+                if not repaired:
+                    raise
+                data = json.loads(extract_json(repaired))
 
             for tool_data in data.get("selected_tools", []):
                 tool_name = tool_data.get("tool_name", "")

@@ -112,10 +112,7 @@ async def health_check():
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     orchestrator = get_orchestrator()
-    response = await orchestrator.process_request(
-        request.message,
-        request.investigation_id,
-    )
+    response = await orchestrator.process_request(request.message)
     return ChatResponse(
         response=response,
         investigation_id=orchestrator.state.investigation_id,
@@ -223,6 +220,54 @@ async def get_osint_graph():
     if not osint:
         raise HTTPException(status_code=503, detail="OSINT engine not initialized")
     return osint.graph.get_statistics()
+
+
+@app.post("/weapon/arm")
+async def arm_weapon_mode():
+    orchestrator = get_orchestrator()
+    orchestrator.weapon_mode = True
+    return {"status": "armed", "weapon_mode": True}
+
+
+@app.post("/weapon/disarm")
+async def disarm_weapon_mode():
+    orchestrator = get_orchestrator()
+    orchestrator.weapon_mode = False
+    return {"status": "disarmed", "weapon_mode": False}
+
+
+@app.get("/weapon/status")
+async def weapon_status():
+    orchestrator = get_orchestrator()
+    config = get_config()
+    pocs = orchestrator.poc_generator.get_all_pocs()
+    return {
+        "weapon_mode": orchestrator.weapon_mode,
+        "execute_exploits": config.weapon.execute_exploits,
+        "exploit_dir": config.weapon.exploit_dir,
+        "poc_count": len(pocs),
+        "exploit_count": sum(1 for p in pocs if p.exploit_file),
+        "exploitation_successes": sum(1 for p in pocs if p.exploitation_success),
+        "exploits": [
+            {
+                "title": p.title,
+                "severity": p.severity,
+                "target": p.target,
+                "language": p.language,
+                "exploit_file": p.exploit_file,
+                "exploitation_success": p.exploitation_success,
+            }
+            for p in pocs
+        ],
+    }
+
+
+@app.get("/weapon/report")
+async def weapon_report():
+    orchestrator = get_orchestrator()
+    return {
+        "markdown": orchestrator.poc_generator.export_pocs_markdown(),
+    }
 
 
 @app.post("/kill-switch/engage")

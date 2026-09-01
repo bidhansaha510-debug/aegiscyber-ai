@@ -242,6 +242,25 @@ class MainWindow(QMainWindow):
         self._stealth_btn.clicked.connect(self._on_stealth_toggle)
         layout.addWidget(self._stealth_btn)
 
+        self._weapon_btn = QPushButton("\u2694 WEAPON")
+        self._weapon_btn.setObjectName("secondaryButton")
+        self._weapon_btn.setCheckable(True)
+        self._weapon_btn.setToolTip(
+            "ARM weapon mode: fully autonomous attack operations.\n"
+            "Plans the full kill chain including exploitation, auto-approves all risk levels,\n"
+            "generates working exploit code and executes it against the authorized target."
+        )
+        self._weapon_btn.setStyleSheet(
+            f"QPushButton {{ font-family: {FONT_MONO}; font-size: 11px; font-weight: 700; "
+            f"color: {COLORS['text_muted']}; background: transparent; "
+            f"border: 1px solid {COLORS['border_hairline']}; border-radius: 4px; "
+            f"padding: 4px 12px; }}"
+            f"QPushButton:checked {{ color: #ff2244; background: rgba(255,34,68,0.10); "
+            f"border-color: #ff2244; }}"
+        )
+        self._weapon_btn.clicked.connect(self._on_weapon_toggle)
+        layout.addWidget(self._weapon_btn)
+
         self._kill_switch = KillSwitchButton()
         self._kill_switch.clicked.connect(self._on_kill_switch)
         layout.addWidget(self._kill_switch)
@@ -627,6 +646,30 @@ class MainWindow(QMainWindow):
             self._chat.append_message(
                 "system",
                 "○ Stealth mode disengaged. Standard operation mode restored."
+            )
+
+    def _on_weapon_toggle(self) -> None:
+        """Toggle weapon mode on/off."""
+        if not self._orchestrator:
+            return
+        armed = self._weapon_btn.isChecked()
+        self._orchestrator.weapon_mode = armed
+        if armed:
+            self._chat.append_message(
+                "system",
+                "\u2694 **WEAPON MODE ARMED**\n\n"
+                "Autonomous offensive operations enabled:\n"
+                "\u2022 Full kill-chain planning: recon \u2192 vuln discovery \u2192 exploitation\n"
+                "\u2022 All risk levels auto-approved (no interactive approval prompts)\n"
+                "\u2022 Working exploit code generated for confirmed vulnerabilities\n"
+                "\u2022 Exploit scripts saved to `exploits/` and executed via WSL2 Kali\n"
+                "\u2022 Exploitation results verified and included in the final report\n\n"
+                "Operations remain bound to the authorized target scope and kill switch."
+            )
+        else:
+            self._chat.append_message(
+                "system",
+                "\u2694 Weapon mode disarmed. Guided scanning mode restored."
             )
 
     def _on_stealth_data(self, data: dict) -> None:

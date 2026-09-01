@@ -2,12 +2,38 @@ from __future__ import annotations
 
 from typing import Any
 
+import re
+
 from app.execution.models import CommandPlan
 from app.tools.schemas import ToolDefinition, ToolScore
 from app.tools.registry import ToolRegistry
 from app.logging_config import get_logger
 
 logger = get_logger("tools.command_planner")
+
+
+def sanitize_args(arguments: list) -> list[str]:
+    """Clean raw model-emitted argument lists before building a CommandPlan."""
+    cleaned: list[str] = []
+    for raw in arguments:
+        if raw is None:
+            continue
+        if isinstance(raw, (dict, list)):
+            continue
+        arg = str(raw).strip()
+        if not arg:
+            continue
+        # Strip markdown/code artifacts and wrapping quotes/backticks.
+        arg = arg.strip("`").strip()
+        if len(arg) >= 2 and arg[0] == arg[-1] and arg[0] in ('\"', "'"):
+            arg = arg[1:-1].strip()
+        if not arg:
+            continue
+        # Collapse model chatter tokens that are not valid shell tokens.
+        if arg.lower() in ("arguments:", "argument:", "args:", "null", "none", "nan"):
+            continue
+        cleaned.append(arg)
+    return cleaned
 
 
 class CommandPlanner:
@@ -132,9 +158,11 @@ class CommandPlanner:
         if tool:
             risk_level = tool.danger_level
 
+        clean_args = sanitize_args(list(arguments))
+        exec_clean = str(executable).strip().strip('`\"\'').split()[0] if str(executable).strip() else ""
         return CommandPlan(
-            executable=executable,
-            arguments=arguments,
+            executable=exec_clean,
+            arguments=clean_args,
             target=target,
             backend=backend,
             timeout=timeout,
